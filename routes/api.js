@@ -18,12 +18,13 @@ const PositionDTO = require('../models/position');
 router.get('/projects', function (req, res) {
     ProjectDTO.find({})
         .select({ '_id': 0 })
-        .exec((err, results) => {
-            if (results) {
+        .sort('startDate')
+        .exec((err, result) => {
+            if (result) {
                 res.statusCode = 200;
                 res.statusMessage = 'OK'
                 res.json({
-                    data: results
+                    data: result
                 });
             } else {
                 res.statusCode = 401;
@@ -32,6 +33,28 @@ router.get('/projects', function (req, res) {
                     data: null
                 });
             }
+        });
+});
+
+router.get('/projects/:projId', function (req, res) {
+    const projectId = req.params['projId'];
+
+    ProjectDTO.find({ projectId: projectId })
+        .select({ '_id': 0 })
+        .exec()
+        .then((results) => {
+            res.statusCode = 200;
+            res.statusMessage = 'OK'
+            res.json({
+                data: results.length > 0 ? results : null
+            });
+        })
+        .catch(() => {
+            res.statusCode = 401;
+            res.statusMessage = 'DB ERROR'
+            res.json({
+                data: null
+            });
         });
 });
 
@@ -43,21 +66,22 @@ router.get('/projects/:year/:qtr', function (req, res) {
 
     ProjectDTO.find({})
         .where('startDate').lte(date)
+        .sort('startDate')
         .select({ '_id': 0 })
-        .exec((err, results) => {
-            if (results) {
-                res.statusCode = 200;
-                res.statusMessage = 'OK'
-                res.json({
-                    data: results
-                });
-            } else {
-                res.statusCode = 401;
-                res.statusMessage = 'DB ERROR'
-                res.json({
-                    data: null
-                });
-            }
+        .exec()
+        .then((results) => {
+            res.statusCode = 200;
+            res.statusMessage = 'OK'
+            res.json({
+                data: results.length > 0 ? results : null
+            });
+        })
+        .catch(() => {
+            res.statusCode = 401;
+            res.statusMessage = 'DB ERROR'
+            res.json({
+                data: null
+            });
         });
 });
 
@@ -69,25 +93,25 @@ router.get('/projects/:year/:qtr', function (req, res) {
 router.get('/users', function (req, res) {
     UserDTO.find({})
         .select({ '_id': 0 })
-        .exec((err, results) => {
-            if (results) {
-                res.statusCode = 200;
-                res.statusMessage = 'OK'
-                res.json({
-                    data: results
-                });
-            } else {
-                res.statusCode = 401;
-                res.statusMessage = 'DB ERROR'
-                res.json({
-                    data: null
-                });
-            }
+        .exec()
+        .then((results) => {
+            res.statusCode = 200;
+            res.statusMessage = 'OK'
+            res.json({
+                data: results.length > 0 ? results : null
+            });
+        })
+        .catch((err) => {
+            res.statusCode = 401;
+            res.statusMessage = 'DB ERROR'
+            res.json({
+                data: null
+            });
         });
 });
 
 // get users by project id
-router.get('/users/:projId', function (req, res) {
+router.get('/users/project/:projId', function (req, res) {
 
     const projectId = req.params['projId'];
 
@@ -95,48 +119,80 @@ router.get('/users/:projId', function (req, res) {
         .where('projectId').equals(projectId)
         .sort('-positionId')
         .select({ '_id': 0, 'kraCollection': 0, 'emailId': 0, 'projectId': 0 })
-        .exec((err, results) => {
-            if (results) {
-                res.statusCode = 200;
-                res.statusMessage = 'OK'
-                res.json({
-                    data: results
-                });
-            } else {
-                res.statusCode = 401;
-                res.statusMessage = 'DB ERROR'
-                res.json({
-                    data: null
-                });
-            }
+        .exec()
+        .then((results) => {
+            res.statusCode = 200;
+            res.statusMessage = 'OK'
+            res.json({
+                data: results.length > 0 ? results : null
+            });
+        })
+        .catch((err) => {
+            res.statusCode = 401;
+            res.statusMessage = 'DB ERROR'
+            res.json({
+                data: null
+            });
         });
 });
 
+router.get('/users/employee/:empId', function (req, res) {
+    const employeeId = req.params['empId'];
+
+    UserDTO.find({ empId: employeeId })
+        .select({ '_id': 0, 'kraCollection': 0 })
+        .exec()
+        .then((result) => {
+            res.statusCode = 200;
+            res.statusMessage = 'OK';
+            res.json({
+                data: result
+            });
+        })
+        .catch((err) => {
+            res.statusCode = 401;
+            res.statusMessage = 'DB ERROR'
+            res.json({
+                data: null
+            });
+        });
+});
+
+
 // get KRA of employee by YEAR and QUARTER
-router.get('/users/:empId/:year/:qtr', function (req, res) {
+router.get('/users/kra/:empId/:year/:qtr', function (req, res) {
 
     const employeeId = req.params['empId'];
     const year = req.params['year'];
     const quarter = req.params['qtr'];
 
-    UserDTO.find({ empId: employeeId },
+    UserDTO.find(
+        { empId: employeeId },
         { kraCollection: { $elemMatch: { year: year } } })
-        .exec((err, results) => {
-            if (results[0].kraCollection[0].quarters[quarter-1]) {
-                res.statusCode = 200;
-                res.statusMessage = 'OK'
+        .select({'_id': 0})
+        .exec()
+        .then((results) => {
+            res.statusCode = 200;
+            res.statusMessage = 'OK';
+            if(results[0].kraCollection[0].quarters[quarter-1].kra.length>0){
                 res.json({
                     data: results[0].kraCollection[0].quarters[quarter-1]
                 });
             } else {
-                res.statusCode = 401;
-                res.statusMessage = 'DB ERROR'
                 res.json({
                     data: null
                 });
             }
+        })
+        .catch((err) => {
+            res.statusCode = 200;
+            res.statusMessage = 'No Records Found'
+            res.json({
+                data: null
+            });
         });
 });
+
 
 // ----------------------------------------------------------------------------
 // POSITIONS
@@ -150,7 +206,7 @@ router.get('/positions', function (req, res) {
                 res.statusCode = 200;
                 res.statusMessage = 'OK'
                 res.json({
-                    data: results
+                data: results.length > 0 ? results : null
                 });
             } else {
                 res.statusCode = 401;

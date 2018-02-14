@@ -21,6 +21,7 @@ var Schema = new Schema({
     firstName: { type: String, required: true, unique: true },
     lastName: { type: String, required: true, trim: true },
     empId: { type: Number, required: true },
+    kraSet: { type: Boolean },
     positionId: { type: Number },
     projectId: { type: Number, required: true },
     emailId: { type: String, required: true },

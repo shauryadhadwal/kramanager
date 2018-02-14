@@ -28,6 +28,9 @@ const options = {
     bufferMaxEntries: 0
 };
 mongoose.connect(uri,options);
+ // Use bluebird
+mongoose.Promise = require('bluebird');
+
 
 
 const app = express();
