@@ -1,10 +1,16 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
+var KraHistorySchema = new Schema({
+    rating: { type: Number, max: 5 },
+    comment: { type: String },
+    dateChanged: { type: Date }
+});
 var KraSchema = new Schema({
     serial: { type: Number, required: true },
     rating: { type: Number, max: 5 },
-    description: { type: String, required: true }
+    description: { type: String, required: true },
+    history: [KraHistorySchema]
 });
 
 var QuarterSchema = new Schema({

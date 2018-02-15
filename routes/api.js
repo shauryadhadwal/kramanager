@@ -110,7 +110,7 @@ router.get('/users', function (req, res) {
         });
 });
 
-// get users by project id
+// get USERS by PROJECT ID
 router.get('/users/project/:projId', function (req, res) {
 
     const projectId = req.params['projId'];
@@ -136,7 +136,8 @@ router.get('/users/project/:projId', function (req, res) {
         });
 });
 
-router.get('/users/employee/:empId', function (req, res) {
+// get USER by EMPLOYEE ID
+router.get('/users/single/:empId', function (req, res) {
     const employeeId = req.params['empId'];
 
     UserDTO.find({ empId: employeeId })
@@ -158,9 +159,11 @@ router.get('/users/employee/:empId', function (req, res) {
         });
 });
 
-
-// get KRA of employee by YEAR and QUARTER
-router.get('/users/kra/:empId/:year/:qtr', function (req, res) {
+// ----------------------------------------------------------------------------
+// KRA
+// ----------------------------------------------------------------------------
+// get KRA by YEAR and QUARTER
+router.get('/kra/:empId/:year/:qtr', function (req, res) {
 
     const employeeId = req.params['empId'];
     const year = req.params['year'];
@@ -169,14 +172,14 @@ router.get('/users/kra/:empId/:year/:qtr', function (req, res) {
     UserDTO.find(
         { empId: employeeId },
         { kraCollection: { $elemMatch: { year: year } } })
-        .select({'_id': 0})
+        .select({ '_id': 0 })
         .exec()
         .then((results) => {
             res.statusCode = 200;
             res.statusMessage = 'OK';
-            if(results[0].kraCollection[0].quarters[quarter-1].kra.length>0){
+            if (results[0].kraCollection[0].quarters[quarter - 1].kra.length > 0) {
                 res.json({
-                    data: results[0].kraCollection[0].quarters[quarter-1]
+                    data: results[0].kraCollection[0].quarters[quarter - 1]
                 });
             } else {
                 res.json({
@@ -193,6 +196,39 @@ router.get('/users/kra/:empId/:year/:qtr', function (req, res) {
         });
 });
 
+// Update RATING
+router.put('/kra/history', function (req, res) {
+
+    UserDTO.findOne({ empId: req.body.employeeId })
+        .exec()
+        .then((user) => {
+            if(!user){
+                res.statusCode = 200;
+                res.statusMessage = 'User not found'
+                res.json({
+                    data: null
+                });
+            }
+            let yearIndex = user.kraCollection.findIndex(x => x.year == req.body.year);
+            let serialIndex = user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra.findIndex(x => x.serial == req.body.kraSerial);
+            user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].history.push(req.body.updatedHistory);
+            user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].rating = req.body.updatedHistory.rating;
+            user.save().then(result => {
+                res.statusCode = 200;
+                res.statusMessage = 'Saved'
+                res.json({
+                    data: user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].history
+                });
+            });
+        })
+        .catch((err) => {
+            res.statusCode = 200;
+            res.statusMessage = 'Error in saving'
+            res.json({
+                data: null
+            });
+        });
+});
 
 // ----------------------------------------------------------------------------
 // POSITIONS
@@ -206,7 +242,7 @@ router.get('/positions', function (req, res) {
                 res.statusCode = 200;
                 res.statusMessage = 'OK'
                 res.json({
-                data: results.length > 0 ? results : null
+                    data: results.length > 0 ? results : null
                 });
             } else {
                 res.statusCode = 401;
