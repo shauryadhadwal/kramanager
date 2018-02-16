@@ -7,6 +7,16 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const async = require('async');
 
+const TRANSPORTER = nodeMailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: config.nodemailer.user,
+        pass: config.nodemailer.pass
+    }
+});
+
 const ProjectDTO = require('../models/project');
 const UserDTO = require('../models/user');
 const PositionDTO = require('../models/position');
@@ -202,7 +212,7 @@ router.put('/kra/history', function (req, res) {
     UserDTO.findOne({ empId: req.body.employeeId })
         .exec()
         .then((user) => {
-            if(!user){
+            if (!user) {
                 res.statusCode = 200;
                 res.statusMessage = 'User not found'
                 res.json({
@@ -217,7 +227,17 @@ router.put('/kra/history', function (req, res) {
                 res.statusCode = 200;
                 res.statusMessage = 'Saved'
                 res.json({
-                    data: user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].history
+                    data: null
+                });
+                sendKraDetails(res, {
+                    name: user.firstName,
+                    email: user.emailId,
+                    quarter: req.body.quarter,
+                    year: req.body.year,
+                    kraSerial: req.body.kraSerial,
+                    rating: req.body.updatedHistory.rating,
+                    comment: req.body.updatedHistory.comment,
+                    description: user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].description
                 });
             });
         })
@@ -229,6 +249,26 @@ router.put('/kra/history', function (req, res) {
             });
         });
 });
+
+const sendKraDetails = function (res, obj) {
+    
+    let mailOptions = {
+        from: 'KRA Manager', // sender address
+        to: obj.email, // list of receivers
+        subject: 'Your Updated KRA', // Subject line
+        text: 'Your Rating has been set or updated', // plain text body
+        html: '<b>Hello ' + obj.name + ',</b>'
+            + '<p>These are the details for your Kra for <strong>' + obj.year + ' Quarter: ' + obj.quarter + '</strong></p>'
+            + '<p><ul><li><strong>Description: </strong>' + obj.description + '</li>'
+            + '<li><strong>Rating:  </strong>' + obj.rating + '</li>'
+            + '<li><strong>Comment:  </strong>' + obj.comment + '</li></ul></p>'
+    };
+
+    TRANSPORTER.sendMail(mailOptions).catch(onRejected => {
+        console.log();
+    }
+    );
+}
 
 // ----------------------------------------------------------------------------
 // POSITIONS

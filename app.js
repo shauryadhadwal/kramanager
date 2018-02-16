@@ -31,8 +31,6 @@ mongoose.connect(uri,options);
  // Use bluebird
 mongoose.Promise = require('bluebird');
 
-
-
 const app = express();
 app.use(cors());
 // view engine setup
@@ -52,6 +50,10 @@ app.use('/', index);
 app.use('/users', users);
 app.use('/api', api);
 
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist/index.html'));
+  });
+  
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found');

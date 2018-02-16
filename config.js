@@ -6,8 +6,8 @@ var config = {
             defaultUri: "mongodb://kramanager:kramanager@ds129428.mlab.com:29428/kramanager"
         },
         nodemailer: {
-            user: 'nagarrobirthdaytracker@gmail.com',
-            pass: 'btapp2017'
+            user: 'managerkra@gmail.com',
+            pass: 'latitudee5470'
         },
         serverUrl: 'http://localhost:3000', 
     },
@@ -18,8 +18,8 @@ var config = {
             defaultUri: "mongodb://dbuser:qwertyuiop@ds139436.mlab.com:39436/btapp"
         },
         nodemailer: {
-            user: 'nagarrobirthdaytracker@gmail.com',
-            pass: 'btapp2017'
+            user: 'managerkra@gmail.com',
+            pass: 'latitudee5470'
         },
         serverUrl: 'http://localhost:3000'
     },
@@ -30,10 +30,10 @@ var config = {
             defaultUri: "mongodb://dbuser:qwertyuiop@ds139436.mlab.com:39436/btapp"
         },
         nodemailer: {
-            user: 'nagarrobirthdaytracker@gmail.com',
-            pass: 'btapp2017'
+            user: 'managerkra@gmail.com',
+            pass: 'latitudee5470'
         },
-        serverUrl: 'https://birthdaytracker.herokuapp.com'
+        serverUrl: 'https://kramanager.herokuapp.com'
     }
 }
 
