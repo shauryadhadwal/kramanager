@@ -13,9 +13,9 @@ var config = {
     },
     development: {
         mlab: {
-            defaultDatabase: "btapp",
-            defaultCollection: "employees",
-            defaultUri: "mongodb://dbuser:qwertyuiop@ds139436.mlab.com:39436/btapp"
+            defaultDatabase: "kramanager",
+            defaultCollection: "projects",
+            defaultUri: "mongodb://kramanager:kramanager@ds129428.mlab.com:29428/kramanager"
         },
         nodemailer: {
             user: 'managerkra@gmail.com',
@@ -25,9 +25,9 @@ var config = {
     },
     production: {
         mlab: {
-            defaultDatabase: "btapp",
-            defaultCollection: "employees",
-            defaultUri: "mongodb://dbuser:qwertyuiop@ds139436.mlab.com:39436/btapp"
+            defaultDatabase: "kramanager",
+            defaultCollection: "projects",
+            defaultUri: "mongodb://kramanager:kramanager@ds129428.mlab.com:29428/kramanager"
         },
         nodemailer: {
             user: 'managerkra@gmail.com',
