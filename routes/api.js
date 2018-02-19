@@ -120,17 +120,30 @@ router.get('/users', function (req, res) {
         });
 });
 
-// get USERS by PROJECT ID
-router.get('/users/project/:projId', function (req, res) {
+// get USERS by PROJECT ID, YEAR, QUARTER
+router.get('/users/project/:projId/:year/:qtr', function (req, res) {
 
     const projectId = req.params['projId'];
+    const year = req.params['year'];
+    const quarter = req.params['qtr'];
 
     UserDTO.find({})
         .where('projectId').equals(projectId)
         .sort('-positionId')
-        .select({ '_id': 0, 'kraCollection': 0, 'emailId': 0, 'projectId': 0 })
+        .select({ '_id': 0, 'emailId': 0, 'projectId': 0 })
         .exec()
         .then((results) => {
+
+            // Modify Kra Status for each employee before sending. 
+            // Get Kra by Year and Quarter
+            results.map(user => {
+                let yearIndex = user.kraCollection.findIndex(x => x.year == year);
+                let kraCount = user.kraCollection[yearIndex].quarters[quarter - 1].kra.length;
+                user.kraSet = true;
+                if(kraCount < 1)
+                    user.kraSet = false;
+            });
+
             res.statusCode = 200;
             res.statusMessage = 'OK'
             res.json({
@@ -139,7 +152,7 @@ router.get('/users/project/:projId', function (req, res) {
         })
         .catch((err) => {
             res.statusCode = 401;
-            res.statusMessage = 'DB ERROR'
+            res.statusMessage = err.message
             res.json({
                 data: null
             });
@@ -172,6 +185,7 @@ router.get('/users/single/:empId', function (req, res) {
 // ----------------------------------------------------------------------------
 // KRA
 // ----------------------------------------------------------------------------
+
 // get KRA by YEAR and QUARTER
 router.get('/kra/:empId/:year/:qtr', function (req, res) {
 
@@ -227,6 +241,7 @@ router.put('/kra/history', function (req, res) {
                 res.statusCode = 200;
                 res.statusMessage = 'Saved'
                 res.json({
+                    success: true,
                     data: null
                 });
                 sendKraDetails(res, {
@@ -242,7 +257,7 @@ router.put('/kra/history', function (req, res) {
             });
         })
         .catch((err) => {
-            res.statusCode = 200;
+            res.statusCode = 401;
             res.statusMessage = 'Error in saving'
             res.json({
                 data: null
@@ -251,7 +266,7 @@ router.put('/kra/history', function (req, res) {
 });
 
 const sendKraDetails = function (res, obj) {
-    
+
     let mailOptions = {
         from: 'KRA Manager', // sender address
         to: obj.email, // list of receivers
@@ -269,6 +284,99 @@ const sendKraDetails = function (res, obj) {
     }
     );
 }
+
+// DELETE Kra
+router.delete('/kra/delete/:empId/:year/:qtr/:serial', function (req, res) {
+    empId = req.params['empId'];
+    year = req.params['year'];
+    quarter = req.params['qtr'];
+    kraSerial = req.params['serial'];
+    UserDTO.findOne({ empId: empId })
+        .exec()
+        .then(user => {
+            if (user) {
+                let yearIndex = user.kraCollection.findIndex(x => x.year == year);
+                let serialIndex = user.kraCollection[yearIndex].quarters[quarter - 1].kra.findIndex(x => x.serial == kraSerial);
+                user.kraCollection[yearIndex].quarters[quarter - 1].kra.splice(serialIndex, 1);
+                user.save().then(result => {
+                    res.statusCode = 200,
+                        res.statusMessage = 'Removed Item',
+                        res.json({
+                            success: true,
+                            data: null
+                        });
+                });
+            }
+        })
+        .catch(err => {
+
+            res.statusCode = 401,
+                res.statusMessage = 'Failed',
+                res.json({
+                    success: false,
+                    data: null
+                })
+        }
+        );
+});
+
+router.put('/kra/create', function (req, res) {
+    UserDTO.findOne({ empId: req.body.employeeId })
+        .exec()
+        .then(user => {
+            if (user) {
+                let yearIndex = user.kraCollection.findIndex(x => x.year == req.body.year);
+                let last = user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra.length;
+                let count = 0;
+                if (last > 0)
+                    count = user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[last - 1].serial;
+
+                user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra.push(
+                    {
+                        serial: count + 1,
+                        rating: 1,
+                        description: req.body.description,
+                        history: [{
+                            rating: 1,
+                            comment: 'Added New KRA',
+                            dateChanged: new Date(),
+                            fileId: 0
+                        }]
+                    });
+
+                user.save().then(result => {
+
+                    // send mail
+                    sendKraDetails(res, {
+                        name: user.firstName,
+                        email: user.emailId,
+                        quarter: req.body.quarter,
+                        year: req.body.year,
+                        kraSerial: count + 1,
+                        rating: 1,
+                        comment: 'Added New KRA',
+                        description: req.body.description
+                    });
+
+                    res.statusCode = 200,
+                        res.statusMessage = 'Added new item',
+                        res.json({
+                            success: true,
+                            data: null
+                        });
+                });
+            }
+        })
+        .catch(err => {
+            res.statusCode = 401,
+                res.statusMessage = err.message,
+                res.json({
+                    success: false,
+                    data: null
+                })
+        }
+        );
+})
 
 // ----------------------------------------------------------------------------
 // POSITIONS
