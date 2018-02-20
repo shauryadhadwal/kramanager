@@ -22,6 +22,36 @@ const UserDTO = require('../models/user');
 const PositionDTO = require('../models/position');
 
 // ----------------------------------------------------------------------------
+// DASHBOARD
+// ----------------------------------------------------------------------------
+
+router.get('/dashboard', function (req, res) {
+    let retVal = {
+        projects: 0,
+        employees: 0,
+    }
+
+    function done(){
+        res.statusCode = 200;
+        res.statusMessage = 'OK'
+        res.json({
+            data: retVal
+        });
+    }
+
+    async.parallel([
+        function(){},
+        function(){}
+    ],(err) => {
+        res.statusCode = 200;
+        res.statusMessage = 'OK'
+        res.json({
+            data: retVal
+        });
+    })
+});
+
+// ----------------------------------------------------------------------------
 // PROJECTS
 // ----------------------------------------------------------------------------
 
@@ -101,8 +131,35 @@ router.get('/projects/:year/:qtr', function (req, res) {
 
 // get all users
 router.get('/users', function (req, res) {
-    UserDTO.find({})
-        .select({ '_id': 0 })
+    UserDTO.aggregate([
+        {
+            '$lookup': {
+                from: 'positions', // collection name in db
+                localField: 'positionId',
+                foreignField: 'positionId',
+                as: 'positionObject'
+            }
+        },
+        {
+            '$lookup': {
+                from: 'projects', // collection name in db
+                localField: 'projectId',
+                foreignField: 'projectId',
+                as: 'projectObject'
+            }
+        },
+        { '$unwind': '$positionObject' },
+        { '$unwind': '$projectObject' },
+        {
+            '$project': {
+                _id: 0,
+                name: { $concat: ["$firstName", " ", "$lastName"] },
+                empId: 1,
+                position: '$positionObject.position',
+                project: '$projectObject.name'
+            }
+        }
+    ])
         .exec()
         .then((results) => {
             res.statusCode = 200;
@@ -140,7 +197,7 @@ router.get('/users/project/:projId/:year/:qtr', function (req, res) {
                 let yearIndex = user.kraCollection.findIndex(x => x.year == year);
                 let kraCount = user.kraCollection[yearIndex].quarters[quarter - 1].kra.length;
                 user.kraSet = true;
-                if(kraCount < 1)
+                if (kraCount < 1)
                     user.kraSet = false;
             });
 
@@ -320,6 +377,7 @@ router.delete('/kra/delete/:empId/:year/:qtr/:serial', function (req, res) {
         );
 });
 
+// CREATE new KRA
 router.put('/kra/create', function (req, res) {
     UserDTO.findOne({ empId: req.body.employeeId })
         .exec()
