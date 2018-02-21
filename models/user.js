@@ -19,14 +19,19 @@ var QuarterSchema = new Schema({
 });
 
 var KraCollectionSchema = new Schema({
-    year: { type: Number, required: true, max: 2050, min: 1990 },
+    year: { type: Number, required: true, max: 2050, min: 1990, },
+    quarters: [QuarterSchema]
+});
+
+var KraCollectionSchema = new Schema({
+    year: { type: Number, required: true, max: 2050, min: 1990, },
     quarters: [QuarterSchema]
 });
 
 var Schema = new Schema({
-    firstName: { type: String, required: true, unique: true },
+    firstName: { type: String, required: true },
     lastName: { type: String, required: true, trim: true },
-    empId: { type: Number, required: true },
+    empId: { type: Number, required: true, unique: true },
     kraSet: { type: Boolean },
     positionId: { type: Number },
     projectId: { type: Number, required: true },

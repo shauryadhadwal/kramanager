@@ -31,24 +31,21 @@ router.get('/dashboard', function (req, res) {
         employees: 0,
     }
 
-    function done(){
-        res.statusCode = 200;
-        res.statusMessage = 'OK'
-        res.json({
-            data: retVal
-        });
-    }
+    async function getDashboardDetails() {
+        getUserCount = UserDTO.count({}).exec((err, res) => res);
+        getProjectCount = ProjectDTO.count({}).exec((err, res) => res);
 
-    async.parallel([
-        function(){},
-        function(){}
-    ],(err) => {
-        res.statusCode = 200;
-        res.statusMessage = 'OK'
+        retVal.projects = await getProjectCount;
+        retVal.employees = await getUserCount;
+    };
+
+    getDashboardDetails().then(success => {
+        res.statusCode = 201;
+        res.message = 'OK';
         res.json({
             data: retVal
         });
-    })
+    });
 });
 
 // ----------------------------------------------------------------------------
@@ -220,7 +217,7 @@ router.get('/users/project/:projId/:year/:qtr', function (req, res) {
 router.get('/users/single/:empId', function (req, res) {
     const employeeId = req.params['empId'];
 
-    UserDTO.find({ empId: employeeId })
+    UserDTO.findOne({ empId: employeeId })
         .select({ '_id': 0, 'kraCollection': 0 })
         .exec()
         .then((result) => {
@@ -232,7 +229,7 @@ router.get('/users/single/:empId', function (req, res) {
         })
         .catch((err) => {
             res.statusCode = 401;
-            res.statusMessage = 'DB ERROR'
+            res.statusMessage = 'DB ERROR';
             res.json({
                 data: null
             });
@@ -242,6 +239,59 @@ router.get('/users/single/:empId', function (req, res) {
 // ----------------------------------------------------------------------------
 // KRA
 // ----------------------------------------------------------------------------
+
+
+// get PROJECT with PENDING COMPLETED statuses
+
+router.get('/kra/projects/:year/:qtr', function (req, res) {
+    year = req.params['year'];
+    quarter = req.params['qtr'];
+
+    async function status() {
+        getProjectsList = ProjectDTO.aggregate([{
+            '$addFields': {
+                'pending': '0',
+                'completed': '0'
+            }
+        }]).exec((err, results) => results);
+        projectsList = await getProjectsList;
+
+        getUsersList = UserDTO.find({}).select({ empId: 1, kraCollection: 1, projectId: 1 }).exec((err, users) => users);
+        usersList = await getUsersList;
+
+        completeAction = () => {
+            for (const user of usersList) {
+                let projectIndex = projectsList.findIndex(project => project.projectId === user.projectId);
+                let yearIndex = user.kraCollection.findIndex(x => x.year == year);
+                let kraCount = user.kraCollection[yearIndex].quarters[quarter - 1].kra.length;
+                if (kraCount < 1)
+                    projectsList[projectIndex].pending++;
+                else
+                    projectsList[projectIndex].completed++
+            }
+            return projectsList;
+        }
+
+        updatedProjectsList = await completeAction();
+    }
+
+    status().then(success => {
+        res.statusCode = 200;
+        res.statusMessage = 'OK';
+        res.json({
+            data: updatedProjectsList
+        });
+    })
+        .catch((err) => {
+            res.statusCode = 401;
+            res.statusMessage = err.message
+            res.json({
+                data: null
+            });
+        });
+
+});
+
 
 // get KRA by YEAR and QUARTER
 router.get('/kra/:empId/:year/:qtr', function (req, res) {
@@ -392,7 +442,7 @@ router.put('/kra/create', function (req, res) {
                 user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra.push(
                     {
                         serial: count + 1,
-                        rating: 1,
+                        rating: 5,
                         description: req.body.description,
                         history: [{
                             rating: 1,
@@ -411,27 +461,27 @@ router.put('/kra/create', function (req, res) {
                         quarter: req.body.quarter,
                         year: req.body.year,
                         kraSerial: count + 1,
-                        rating: 1,
+                        rating: 5,
                         comment: 'Added New KRA',
                         description: req.body.description
                     });
 
-                    res.statusCode = 200,
-                        res.statusMessage = 'Added new item',
-                        res.json({
-                            success: true,
-                            data: null
-                        });
+                    res.statusCode = 200;
+                    res.statusMessage = 'Added new item';
+                    res.json({
+                        success: true,
+                        data: null
+                    });
                 });
             }
         })
         .catch(err => {
-            res.statusCode = 401,
-                res.statusMessage = err.message,
-                res.json({
-                    success: false,
-                    data: null
-                })
+            res.statusCode = 401;
+            res.statusMessage = err.message;
+            res.json({
+                success: false,
+                data: null
+            });
         }
         );
 })
@@ -459,5 +509,53 @@ router.get('/positions', function (req, res) {
             }
         });
 });
+
+// ----------------------------------------------------------------------------
+// ADMIN
+// ----------------------------------------------------------------------------
+
+// CREATE new user
+router.post('/admin/user', function (req, res) {
+    const user = new UserDTO();
+
+    user.firstName = req.body.firstName;
+    user.lastName = req.body.lastName;
+    user.empId = req.body.empId;
+    user.projectId = req.body.projectId;
+    user.positionId = req.body.positionId;
+    user.emailId = req.body.emailId;
+    user.kraCollection = [];
+    const year = new Date().getFullYear();
+    user.kraCollection.push({
+        year: year,
+        quarters: [
+            { quarter: 1, kra: [] },
+            { quarter: 2, kra: [] },
+            { quarter: 3, kra: [] },
+            { quarter: 4, kra: [] }
+        ]
+    });
+
+    user.save()
+        .then(result => {
+            res.statusCode = 200;
+            res.statusMessage = 'New User Created';
+            res.json({
+                success: true,
+                data: null
+            });
+        })
+        .catch(err => {
+            res.statusCode = 401;
+            res.statusMessage = err.message;
+            res.json({
+                success: false,
+                data: null
+            });
+        }
+        );
+});
+
+
 
 module.exports = router;
