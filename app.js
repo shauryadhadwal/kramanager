@@ -41,6 +41,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(__dirname + '/dist'));
+// Prevent unauthorized access
+app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/', '/api/login'] }));
+
 //ROUTES
 app.use('/api', api);
 
@@ -57,6 +60,9 @@ app.use(function (req, res, next) {
 
 // error handler
 app.use(function (err, req, res, next) {
+    if (err.name === 'UnauthorizedError') {
+        res.status(401).send('invalid token...');
+    }
     // set locals, only providing error in development
     res.locals.message = err.message;
     res.locals.error = req.app.get('env') === 'development' ? err : {};

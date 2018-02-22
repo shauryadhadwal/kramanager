@@ -34,7 +34,7 @@ var Schema = new Schema({
     empId: { type: Number, required: true, unique: true },
     kraSet: { type: Boolean },
     positionId: { type: Number },
-    projectId: { type: Number, required: true },
+    projectId: { type: Number },
     emailId: { type: String, required: true },
     kraCollection: [KraCollectionSchema]
 });

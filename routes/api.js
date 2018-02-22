@@ -5,7 +5,6 @@ const randomatic = require('randomatic');
 const randString = randomatic('A0a', 7);
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const async = require('async');
 
 const TRANSPORTER = nodeMailer.createTransport({
     host: 'smtp.gmail.com',
@@ -20,6 +19,86 @@ const TRANSPORTER = nodeMailer.createTransport({
 const ProjectDTO = require('../models/project');
 const UserDTO = require('../models/user');
 const PositionDTO = require('../models/position');
+const CredentialDTO = require('../models/credential');
+const RoleDTO = require('../models/role');
+
+
+// ----------------------------------------------------------------------------
+// LOGIN
+// ----------------------------------------------------------------------------
+
+router.post('/login',
+    // Check database
+    function (req, res, next) {
+
+        CredentialDTO.findOne({ empId: req.body.empId })
+            .exec()
+            // Account Found
+            .then(result => {
+                if (result.password === req.body.password) {
+                    next();
+                }
+                // Password does not match
+                else {
+                    res.statusCode = 201;
+                    res.message = 'OK';
+                    res.json({
+                        success: false,
+                        loginFailType: 'password',
+                        data: { empId: result.empId }
+                    });
+                }
+            })
+            // Account NOT found
+            .catch(err => {
+                res.statusCode = 201;
+                res.message = err.message;
+                res.json({
+                    success: false,
+                    loginFailType: 'id',
+                    data: null
+                });
+            });
+    },
+    // Sign JWT Token
+    function (req, res) {
+        // Define ROLE 
+        // manager, lead, normal
+        getRole = async () => {
+            const role = await RoleDTO.find({}).exec()
+                .then(results => {
+                    const id = parseInt(req.body.empId, 10);
+                    if (results[0].manager.includes(id))
+                        return 'manager';
+                    else if (results[0].lead.includes(id))
+                        return 'lead';
+                    else if (results[0].admin.includes(id))
+                        return 'admin';
+                    else
+                        return 'basic'
+                });
+            return role;
+        }
+
+        getRole().then(result => {
+            jwt.sign({ empId: req.body.empId, role: result }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
+                res.message = 'Verified';
+                res.json({
+                    success: true,
+                    data: { jwt_token: token, empId: req.body.empId, role: result }
+                });
+            });
+        })
+            .catch(err => {
+                res.statusCode = 401;
+                res.message = 'JWT FAIL';
+                res.json({
+                    success: false,
+                    data: null
+                });
+            });
+    }
+);
 
 // ----------------------------------------------------------------------------
 // DASHBOARD
@@ -76,14 +155,14 @@ router.get('/projects', function (req, res) {
 router.get('/projects/:projId', function (req, res) {
     const projectId = req.params['projId'];
 
-    ProjectDTO.find({ projectId: projectId })
-        .select({ '_id': 0 })
+    ProjectDTO.findOne({ projectId: projectId })
+        .select({ '_id': 0,})
         .exec()
-        .then((results) => {
+        .then((result) => {
             res.statusCode = 200;
             res.statusMessage = 'OK'
             res.json({
-                data: results.length > 0 ? results : null
+                data: result ? result : null
             });
         })
         .catch(() => {
@@ -147,6 +226,12 @@ router.get('/users', function (req, res) {
         },
         { '$unwind': '$positionObject' },
         { '$unwind': '$projectObject' },
+        {
+            '$sort': {
+                projectId: 1,
+                positionId: -1
+            }
+        },
         {
             '$project': {
                 _id: 0,
@@ -248,12 +333,19 @@ router.get('/kra/projects/:year/:qtr', function (req, res) {
     quarter = req.params['qtr'];
 
     async function status() {
-        getProjectsList = ProjectDTO.aggregate([{
-            '$addFields': {
-                'pending': '0',
-                'completed': '0'
+        getProjectsList = ProjectDTO.aggregate([
+            {
+                '$addFields': {
+                    'pending': '0',
+                    'completed': '0'
+                }
+            },
+            {
+                '$sort': {
+                    projectId: 1
+                }
             }
-        }]).exec((err, results) => results);
+        ]).exec((err, results) => results);
         projectsList = await getProjectsList;
 
         getUsersList = UserDTO.find({}).select({ empId: 1, kraCollection: 1, projectId: 1 }).exec((err, users) => users);
@@ -300,17 +392,17 @@ router.get('/kra/:empId/:year/:qtr', function (req, res) {
     const year = req.params['year'];
     const quarter = req.params['qtr'];
 
-    UserDTO.find(
+    UserDTO.findOne(
         { empId: employeeId },
         { kraCollection: { $elemMatch: { year: year } } })
         .select({ '_id': 0 })
         .exec()
-        .then((results) => {
+        .then((result) => {
             res.statusCode = 200;
             res.statusMessage = 'OK';
-            if (results[0].kraCollection[0].quarters[quarter - 1].kra.length > 0) {
+            if (result.kraCollection[0].quarters[quarter - 1].kra.length > 0) {
                 res.json({
-                    data: results[0].kraCollection[0].quarters[quarter - 1]
+                    data: result.kraCollection[0].quarters[quarter - 1]
                 });
             } else {
                 res.json({
