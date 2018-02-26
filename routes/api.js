@@ -388,7 +388,6 @@ router.get('/kra/projects/:year/:qtr', function (req, res) {
             }
             return projectsList;
         }
-
         updatedProjectsList = await completeAction();
     }
 
