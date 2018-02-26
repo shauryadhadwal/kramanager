@@ -65,27 +65,32 @@ router.post('/login',
         // Define ROLE 
         // manager, lead, normal
         getRole = async () => {
+            const retVal = { role: '', projectId: null };
+            const id = parseInt(req.body.empId, 10);
             const role = await RoleDTO.find({}).exec()
                 .then(results => {
-                    const id = parseInt(req.body.empId, 10);
                     if (results[0].manager.includes(id))
-                        return 'manager';
+                        retVal.role = 'manager';
                     else if (results[0].lead.includes(id))
-                        return 'lead';
+                        retVal.role = 'lead';
                     else if (results[0].admin.includes(id))
-                        return 'admin';
+                        retVal.role = 'admin';
                     else
-                        return 'basic'
+                        retVal.role = 'basic'
                 });
-            return role;
+
+            const projectId = await UserDTO.findOne({ empId: id }).exec()
+                .then(result => retVal.projectId = result.projectId);
+
+            return retVal;
         }
 
         getRole().then(result => {
-            jwt.sign({ empId: req.body.empId, role: result }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
+            jwt.sign({ empId: req.body.empId, role: result.role, projectId: result.projectId }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
                 res.message = 'Verified';
                 res.json({
                     success: true,
-                    data: { jwt_token: token, empId: req.body.empId, role: result }
+                    data: { jwt_token: token, empId: req.body.empId, role: result.role, projectId: result.projectId }
                 });
             });
         })
@@ -156,7 +161,7 @@ router.get('/projects/:projId', function (req, res) {
     const projectId = req.params['projId'];
 
     ProjectDTO.findOne({ projectId: projectId })
-        .select({ '_id': 0,})
+        .select({ '_id': 0, })
         .exec()
         .then((result) => {
             res.statusCode = 200;
@@ -335,24 +340,43 @@ router.get('/kra/projects/:year/:qtr', function (req, res) {
     async function status() {
         getProjectsList = ProjectDTO.aggregate([
             {
+                '$lookup': {
+                    from: 'users',
+                    localField: 'teamLeadId',
+                    foreignField: 'empId',
+                    as: 'userObject'
+                }
+            },
+            { '$unwind': '$userObject' },
+            {
                 '$addFields': {
                     'pending': '0',
-                    'completed': '0'
+                    'completed': '0',
+                    'teamLeadName': { $concat: ["$userObject.firstName", " ", "$userObject.lastName"] },
                 }
             },
             {
                 '$sort': {
                     projectId: 1
                 }
+            },
+            {
+                '$project': {
+                    userObject: 0
+                }
             }
         ]).exec((err, results) => results);
         projectsList = await getProjectsList;
 
-        getUsersList = UserDTO.find({}).select({ empId: 1, kraCollection: 1, projectId: 1 }).exec((err, users) => users);
+        getUsersList = UserDTO.find({}).select({ empId: 1, kraCollection: 1, projectId: 1, firstName: 1, lastName: 1 }).exec((err, users) => users);
         usersList = await getUsersList;
 
         completeAction = () => {
             for (const user of usersList) {
+                // get user's project in projects list
+                if (user.empId === 545) {
+                    continue;
+                }
                 let projectIndex = projectsList.findIndex(project => project.projectId === user.projectId);
                 let yearIndex = user.kraCollection.findIndex(x => x.year == year);
                 let kraCount = user.kraCollection[yearIndex].quarters[quarter - 1].kra.length;
@@ -360,6 +384,7 @@ router.get('/kra/projects/:year/:qtr', function (req, res) {
                     projectsList[projectIndex].pending++;
                 else
                     projectsList[projectIndex].completed++
+
             }
             return projectsList;
         }
@@ -381,9 +406,7 @@ router.get('/kra/projects/:year/:qtr', function (req, res) {
                 data: null
             });
         });
-
 });
-
 
 // get KRA by YEAR and QUARTER
 router.get('/kra/:empId/:year/:qtr', function (req, res) {

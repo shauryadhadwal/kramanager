@@ -5,6 +5,7 @@ var Schema = new Schema({
     projectId: { type: Number, required: true, unique: true },
     name: { type: String, required: true, trim: true },
     startDate: { type: Number },
+    teamLeadId: {type: Number},
     members: [{type: Number}]
 });
 
