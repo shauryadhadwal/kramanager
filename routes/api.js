@@ -2,7 +2,6 @@ const express = require('express');
 const config = require('../config.js').get(process.env.NODE_ENV);
 const nodeMailer = require('nodemailer');
 const randomatic = require('randomatic');
-const randString = randomatic('A0a', 7);
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 
@@ -104,6 +103,49 @@ router.post('/login',
             });
     }
 );
+
+// ----------------------------------------------------------------------------
+// Password
+// ----------------------------------------------------------------------------
+
+router.post('/password/reset/sendVerification', function (req, res, next) {
+    const employeeId = req.body.empId;
+
+    CredentialDTO.findOne({ empId: employeeId }).exec().then(result => {
+        const verificationCode = randomatic('A0a', 5);
+        sendResetVerificationMail(code, result.emailId);
+        result.isPasswordResetRequest = true;
+        result.verificationCode = verificationCode;
+        result.save().then(result => {
+            res.json(result);
+        });
+    }).catch(err => {
+        res.statusCode = 401;
+        res.message = 'Password Reset Fail';
+        res.json({
+            success: false,
+            data: null
+        });
+    });
+
+    const sendResetVerificationMail = function (code, emailId) {
+
+        let mailOptions = {
+            from: 'KRA Manager', // sender address
+            to: emailId, // list of receivers
+            subject: 'Password Reset Request', // Subject line
+            text: 'Use this verification code to set your password', // plain text body
+            html: '<b>Verification Code: ' + obj.name + '</b>'
+        };
+
+        TRANSPORTER.sendMail(mailOptions).catch(onRejected => {
+            console.log();
+        }
+        );
+    }
+
+});
+
 
 // ----------------------------------------------------------------------------
 // DASHBOARD
@@ -559,7 +601,7 @@ router.put('/kra/create', function (req, res) {
                         rating: 5,
                         description: req.body.description,
                         history: [{
-                            rating: 1,
+                            rating: 5,
                             comment: 'Added New KRA',
                             dateChanged: new Date(),
                             fileId: 0
