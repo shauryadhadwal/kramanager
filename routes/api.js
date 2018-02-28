@@ -21,7 +21,6 @@ const PositionDTO = require('../models/position');
 const CredentialDTO = require('../models/credential');
 const RoleDTO = require('../models/role');
 
-
 // ----------------------------------------------------------------------------
 // LOGIN
 // ----------------------------------------------------------------------------
@@ -108,17 +107,85 @@ router.post('/login',
 // Password
 // ----------------------------------------------------------------------------
 
-router.post('/password/reset/sendVerification', function (req, res, next) {
-    const employeeId = req.body.empId;
+router.get('/password/reset/sendVerification/:id', function (req, res) {
+    employeeId = req.params['id'];
+    UserDTO.findOne({ empId: employeeId }).exec().then(user => {
+        const code = randomatic('A0a', 5);
+        // set code in database
+        setVerificationCode(user.empId, code);
+        // send verfication mail
+        sendVerficationMail(user.emailId, code);
 
-    CredentialDTO.findOne({ empId: employeeId }).exec().then(result => {
-        const verificationCode = randomatic('A0a', 5);
-        sendResetVerificationMail(code, result.emailId);
-        result.isPasswordResetRequest = true;
-        result.verificationCode = verificationCode;
-        result.save().then(result => {
-            res.json(result);
-        });
+        res.json({
+            success: true,
+            data: {
+                emailId: user.emailId,
+                empId: user.empId
+            }
+        })
+    }).catch(err => {
+        res.statusMessage = 'No User Found'
+        res.json({
+            success: false,
+            data: null
+        })
+    });
+});
+
+function setVerificationCode(empId, code) {
+    CredentialDTO.findOne({ empId: empId }).exec().then(credential => {
+        credential.verificationCode = code;
+        credential.isPasswordResetRequest = true;
+        credential.save();
+    }).catch(err => {
+        newCred = new CredentialDTO();
+        newCred.empId = empId;
+        newCred.isPasswordResetRequest = true;
+        newCred.verificationCode = code;
+        newCred.password = 'newPassword';
+        newCred.save();
+    });
+}
+
+const sendVerficationMail = (emailId, code) => {
+    let mailOptions = {
+        from: 'KRA Manager', // sender address
+        to: emailId, // list of receivers
+        subject: 'Password Reset Request', // Subject line
+        text: 'Use this verification code to set your password', // plain text body
+        html: '<p>Verification Code: <strong>' + code + '</strong></p>'
+    };
+
+    TRANSPORTER.sendMail(mailOptions).catch(onRejected => {
+        console.log();
+    });
+};
+
+router.post('/password/reset', function (req, res, next) {
+    const employeeId = req.body.empId;
+    const code = req.body.verificationCode;
+    const newPassword = req.body.newPassword;
+
+    CredentialDTO.findOne({ empId: employeeId }).exec().then(credential => {
+        if (credential.isPasswordResetRequest) {
+            if (code === credential.verificationCode) {
+                credential.password = newPassword;
+                credential.isPasswordResetRequest = false;
+                credential.verificationCode = '';
+                credential.save().then(result => {
+                    res.json({
+                        success: true,
+                        data: null
+                    });
+                }).catch(err => {
+                    res.message = err.message;
+                    res.json({
+                        success: false,
+                        data: null
+                    });
+                });
+            }
+        }
     }).catch(err => {
         res.statusCode = 401;
         res.message = 'Password Reset Fail';
@@ -127,25 +194,7 @@ router.post('/password/reset/sendVerification', function (req, res, next) {
             data: null
         });
     });
-
-    const sendResetVerificationMail = function (code, emailId) {
-
-        let mailOptions = {
-            from: 'KRA Manager', // sender address
-            to: emailId, // list of receivers
-            subject: 'Password Reset Request', // Subject line
-            text: 'Use this verification code to set your password', // plain text body
-            html: '<b>Verification Code: ' + obj.name + '</b>'
-        };
-
-        TRANSPORTER.sendMail(mailOptions).catch(onRejected => {
-            console.log();
-        }
-        );
-    }
-
 });
-
 
 // ----------------------------------------------------------------------------
 // DASHBOARD

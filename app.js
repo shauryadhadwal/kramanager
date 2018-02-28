@@ -71,6 +71,6 @@ app.use(function (err, req, res, next) {
 });
 
 // Prevent unauthorized access
-app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/', '/api/login', '/api/password/reset/sendVerification'] }));
+app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/', '/api/login', '/api/password/'] }));
 
 module.exports = app;
