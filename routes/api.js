@@ -152,8 +152,8 @@ const sendVerficationMail = (emailId, code) => {
         from: 'KRA Manager', // sender address
         to: emailId, // list of receivers
         subject: 'Password Reset Request', // Subject line
-        text: 'Use this verification code to set your password', // plain text body
-        html: '<p>Verification Code: <strong>' + code + '</strong></p>'
+        text: 'Use this OTP to set your new password', // plain text body
+        html: '<p style="font-size: 40px;">OTP: <strong >' + code + '</strong></p>'
     };
 
     TRANSPORTER.sendMail(mailOptions).catch(onRejected => {
