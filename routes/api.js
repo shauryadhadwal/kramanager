@@ -4,6 +4,7 @@ const nodeMailer = require('nodemailer');
 const randomatic = require('randomatic');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto-js');
 
 const TRANSPORTER = nodeMailer.createTransport({
     host: 'smtp.gmail.com',
@@ -28,12 +29,18 @@ const RoleDTO = require('../models/role');
 router.post('/login',
     // Check database
     function (req, res, next) {
+        try {
+            bytes = crypto.AES.decrypt(req.body.cipher, process.env.AES_KEY);
+            decryptedData = JSON.parse(bytes.toString(crypto.enc.Utf8));
+        } catch (error) {
+            console.error(error.message);
+        }
 
-        CredentialDTO.findOne({ empId: req.body.empId })
+        CredentialDTO.findOne({ empId: decryptedData.empId })
             .exec()
             // Account Found
             .then(result => {
-                if (result.password === req.body.password) {
+                if (result.password === decryptedData.password) {
                     next();
                 }
                 // Password does not match
@@ -60,11 +67,18 @@ router.post('/login',
     },
     // Sign JWT Token
     function (req, res) {
+
+        try {
+            bytes = crypto.AES.decrypt(req.body.cipher, process.env.AES_KEY);
+            decryptedData = JSON.parse(bytes.toString(crypto.enc.Utf8));
+        } catch (error) {
+            console.error(error.message);
+        }
         // Define ROLE 
         // manager, lead, normal
         getRole = async () => {
             const retVal = { role: '', projectId: null };
-            const id = parseInt(req.body.empId, 10);
+            const id = parseInt(decryptedData.empId, 10);
             const role = await RoleDTO.find({}).exec()
                 .then(results => {
                     if (results[0].manager.includes(id))
@@ -84,11 +98,11 @@ router.post('/login',
         }
 
         getRole().then(result => {
-            jwt.sign({ empId: req.body.empId, role: result.role, projectId: result.projectId }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
+            jwt.sign({ empId: decryptedData.empId, role: result.role, projectId: result.projectId }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
                 res.message = 'Verified';
                 res.json({
                     success: true,
-                    data: { jwt_token: token, empId: req.body.empId, role: result.role, projectId: result.projectId }
+                    data: { jwt_token: token }
                 });
             });
         })
