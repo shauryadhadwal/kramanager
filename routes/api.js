@@ -176,9 +176,17 @@ const sendVerficationMail = (emailId, code) => {
 };
 
 router.post('/password/reset', function (req, res, next) {
-    const employeeId = req.body.empId;
-    const code = req.body.verificationCode;
-    const newPassword = req.body.newPassword;
+
+    try {
+        bytes = crypto.AES.decrypt(req.body.cipher, process.env.AES_KEY);
+        decryptedData = JSON.parse(bytes.toString(crypto.enc.Utf8));
+    } catch (error) {
+        console.error(error.message);
+    }
+
+    const employeeId = decryptedData.empId;
+    const code = decryptedData.verificationCode;
+    const newPassword = decryptedData.newPassword;
 
     CredentialDTO.findOne({ empId: employeeId }).exec().then(credential => {
         if (credential.isPasswordResetRequest) {
