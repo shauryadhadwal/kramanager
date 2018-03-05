@@ -3,23 +3,23 @@ var config = {
         mlab: {
             defaultDatabase: "kramanager",
             defaultCollection: "projects",
-            defaultUri: "mongodb://kramanager:kramanager@ds129428.mlab.com:29428/kramanager"
+            defaultUri: "mongodb://" + process.env.DB_USERNAME + ":" + process.env.DB_PASSWORD + "@ds129428.mlab.com:29428/kramanager"
         },
         nodemailer: {
-            user: 'managerkra@gmail.com',
-            pass: 'latitudee5470'
+            user: process.env.NM_USERNAME,
+            pass: process.env.NM_PASSWORD
         },
-        serverUrl: 'http://localhost:3000', 
+        serverUrl: 'http://localhost:3000',
     },
     development: {
         mlab: {
             defaultDatabase: "kramanager",
             defaultCollection: "projects",
-            defaultUri: "mongodb://kramanager:kramanager@ds129428.mlab.com:29428/kramanager"
+            defaultUri: "mongodb://" + process.env.DB_USERNAME + ":" + process.env.DB_PASSWORD + "@ds129428.mlab.com:29428/kramanager"
         },
         nodemailer: {
-            user: 'managerkra@gmail.com',
-            pass: 'latitudee5470'
+            user: process.env.NM_USERNAME,
+            pass: process.env.NM_PASSWORD
         },
         serverUrl: 'http://localhost:3000'
     },
@@ -27,11 +27,11 @@ var config = {
         mlab: {
             defaultDatabase: "kramanager",
             defaultCollection: "projects",
-            defaultUri: "mongodb://kramanager:kramanager@ds129428.mlab.com:29428/kramanager"
+            defaultUri: "mongodb://" + process.env.DB_USERNAME + ":" + process.env.DB_PASSWORD + "@ds129428.mlab.com:29428/kramanager"
         },
         nodemailer: {
-            user: 'managerkra@gmail.com',
-            pass: 'latitudee5470'
+            user: process.env.NM_USERNAME,
+            pass: process.env.NM_PASSWORD
         },
         serverUrl: 'https://kramanager.herokuapp.com'
     }
@@ -39,4 +39,4 @@ var config = {
 
 exports.get = function get(env) {
     return config[env] || config.default;
-  }
+}
