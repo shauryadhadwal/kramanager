@@ -15,7 +15,7 @@ var config = {
         mlab: {
             defaultDatabase: "kramanager",
             defaultCollection: "projects",
-            defaultUri: "mongodb://" + process.env.DB_USERNAME + ":" + process.env.DB_PASSWORD + "@ds129428.mlab.com:29428/kramanager"
+            defaultUri: "mongodb://" + process.env.DB_USERNAME + ":" + process.env.DB_PASSWORD + "@ds255958.mlab.com:55958/kramanagertest"
         },
         nodemailer: {
             user: process.env.NM_USERNAME,

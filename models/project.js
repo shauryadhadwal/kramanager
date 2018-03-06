@@ -6,7 +6,7 @@ var Schema = new Schema({
     name: { type: String, required: true, trim: true },
     startDate: { type: Number },
     teamLeadId: {type: Number},
-    members: [{type: Number}]
+    portfolioId: {type: Number}
 });
 
 module.exports = mongoose.model('Project', Schema, 'projects');

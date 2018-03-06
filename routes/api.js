@@ -21,6 +21,7 @@ const UserDTO = require('../models/user');
 const PositionDTO = require('../models/position');
 const CredentialDTO = require('../models/credential');
 const RoleDTO = require('../models/role');
+const PortfolioDTO = require('../models/portfolio');
 
 // ----------------------------------------------------------------------------
 // LOGIN
@@ -497,7 +498,6 @@ router.get('/kra/projects/:year/:qtr', function (req, res) {
                     projectsList[projectIndex].pending++;
                 else
                     projectsList[projectIndex].completed++
-
             }
             return projectsList;
         }
@@ -746,7 +746,7 @@ router.post('/admin/user', function (req, res) {
     const user = new UserDTO();
 
     user.firstName = req.body.firstName;
-    user.lastName = req.body.lastName;
+    user.lastName = req.body.lastName === null || undefined ? null : req.body.lastname;
     user.empId = req.body.empId;
     user.projectId = req.body.projectId;
     user.positionId = req.body.positionId;
@@ -783,6 +783,55 @@ router.post('/admin/user', function (req, res) {
         );
 });
 
+// Create new project
+router.post('/admin/project', function (req, res) {
+    const project = new ProjectDTO();
+    project = req.body;
 
+    project.save()
+        .then(result => {
+            res.statusCode = 200;
+            res.statusMessage = 'Project Saved';
+            res.json({
+                success: true,
+                data: null
+            });
+        })
+        .catch(err => {
+            res.statusCode = 401;
+            res.statusMessage = err.message;
+            res.json({
+                success: false,
+                data: null
+            });
+        }
+        );
+});
+
+
+// Create new portfolio
+router.post('/admin/portfolio', function (req, res) {
+    const portfolio = new PortfolioDTO();
+    portfolio = req.body;
+
+    portfolio.save()
+        .then(result => {
+            res.statusCode = 200;
+            res.statusMessage = 'Portfolio Saved';
+            res.json({
+                success: true,
+                data: null
+            });
+        })
+        .catch(err => {
+            res.statusCode = 401;
+            res.statusMessage = err.message;
+            res.json({
+                success: false,
+                data: null
+            });
+        }
+        );
+});
 
 module.exports = router;
