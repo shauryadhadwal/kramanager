@@ -354,7 +354,7 @@ router.get('/users', function (req, res) {
         {
             '$project': {
                 _id: 0,
-                name: { $concat: ["$firstName", " ", "$lastName"] },
+                name: { $concat: ["$firstName", " ", { $ifNull: ["$lastName", ""] }] },
                 empId: 1,
                 position: '$positionObject.position',
                 project: '$projectObject.name'
@@ -466,7 +466,7 @@ router.get('/kra/projects/:year/:qtr', function (req, res) {
                 '$addFields': {
                     'pending': '0',
                     'completed': '0',
-                    'teamLeadName': { $concat: ["$userObject.firstName", " ", "$userObject.lastName"] },
+                    'teamLeadName': { $concat: ["$userObject.firstName", " ", { $ifNull: ["$userObject.lastName", ""] }] },
                 }
             },
             {
