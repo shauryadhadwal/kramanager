@@ -41,6 +41,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(__dirname + '/dist'));
+    
+// Prevent unauthorized access
+app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/', '/api/login', '/api/password/'] }));
 
 //ROUTES
 app.use('/api', api);
@@ -70,7 +73,5 @@ app.use(function (err, req, res, next) {
     res.render('error');
 });
 
-// Prevent unauthorized access
-app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/', '/api/login', '/api/password/'] }));
 
 module.exports = app;

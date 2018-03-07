@@ -29,7 +29,7 @@ const PortfolioDTO = require('../models/portfolio');
 
 router.post('/login',
     // Check database
-    function (req, res, next) {
+    function (req, res) {
         try {
             bytes = crypto.AES.decrypt(req.body.cipher, process.env.AES_KEY);
             decryptedData = JSON.parse(bytes.toString(crypto.enc.Utf8));
@@ -42,7 +42,14 @@ router.post('/login',
             // Account Found
             .then(result => {
                 if (result.password === decryptedData.password) {
-                    next();
+                    // Sign jwt
+                    jwt.sign({ empId: decryptedData.empId, roles: result.roles }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
+                        res.message = 'Verified';
+                        res.json({
+                            success: true,
+                            data: { jwt_token: token }
+                        });
+                    });
                 }
                 // Password does not match
                 else {
@@ -54,6 +61,7 @@ router.post('/login',
                         data: { empId: result.empId }
                     });
                 }
+                return null;
             })
             // Account NOT found
             .catch(err => {
@@ -65,58 +73,7 @@ router.post('/login',
                     data: null
                 });
             });
-    },
-    // Sign JWT Token
-    function (req, res) {
-
-        try {
-            bytes = crypto.AES.decrypt(req.body.cipher, process.env.AES_KEY);
-            decryptedData = JSON.parse(bytes.toString(crypto.enc.Utf8));
-        } catch (error) {
-            console.error(error.message);
-        }
-        // Define ROLE 
-        // manager, lead, normal
-        getRole = async () => {
-            const retVal = { role: '', projectId: null };
-            const id = parseInt(decryptedData.empId, 10);
-            const role = await RoleDTO.find({}).exec()
-                .then(results => {
-                    if (results[0].manager.includes(id))
-                        retVal.role = 'manager';
-                    else if (results[0].lead.includes(id))
-                        retVal.role = 'lead';
-                    else if (results[0].admin.includes(id))
-                        retVal.role = 'admin';
-                    else
-                        retVal.role = 'basic'
-                });
-
-            const projectId = await UserDTO.findOne({ empId: id }).exec()
-                .then(result => retVal.projectId = result.projectId);
-
-            return retVal;
-        }
-
-        getRole().then(result => {
-            jwt.sign({ empId: decryptedData.empId, role: result.role, projectId: result.projectId }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
-                res.message = 'Verified';
-                res.json({
-                    success: true,
-                    data: { jwt_token: token }
-                });
-            });
-        })
-            .catch(err => {
-                res.statusCode = 401;
-                res.message = 'JWT FAIL';
-                res.json({
-                    success: false,
-                    data: null
-                });
-            });
-    }
-);
+    });
 
 // ----------------------------------------------------------------------------
 // Password
@@ -223,7 +180,7 @@ router.post('/password/reset', function (req, res, next) {
 // DASHBOARD
 // ----------------------------------------------------------------------------
 
-router.get('/dashboard', function (req, res) {
+router.get('/dashboard/:id', function (req, res) {
     let retVal = {
         projects: 0,
         employees: 0,
@@ -244,6 +201,7 @@ router.get('/dashboard', function (req, res) {
             data: retVal
         });
     });
+
 });
 
 // ----------------------------------------------------------------------------
@@ -437,6 +395,114 @@ router.get('/users/single/:empId', function (req, res) {
             res.json({
                 data: null
             });
+        });
+});
+
+// USER OBJECT on LOGIN
+router.get('/users/complete/:empId', function (req, res) {
+    const employeeId = parseInt(req.params['empId'], 10);
+
+    UserDTO.aggregate([
+        // single document
+        {
+            '$match': { empId: employeeId }
+        },
+        // POSITION
+        {
+            '$lookup': {
+                from: 'positions', // collection name in db
+                localField: 'positionId',
+                foreignField: 'positionId',
+                as: 'positionObject'
+            }
+        },
+        { '$unwind': '$positionObject' },
+        {
+            '$addFields': { positionName: '$positionObject.position' }
+        },
+        // PROJECT
+        {
+            '$lookup': {
+                from: 'projects', // collection name in db
+                localField: 'projectId',
+                foreignField: 'projectId',
+                as: 'projectObject'
+            }
+        },
+        { '$unwind': '$projectObject' },
+        {
+            '$addFields': {
+                projectName: '$projectObject.name',
+                projectLeadId: '$projectObject.teamLeadId',
+                projectManagerId: '$projectObject.managerId'
+            }
+        },
+        // TEAM LEAD
+        {
+            '$lookup': {
+                from: 'users', // collection name in db
+                localField: 'projectLeadId',
+                foreignField: 'empId',
+                as: 'teamLeadObject'
+            }
+        },
+        { '$unwind': '$teamLeadObject' },
+        // MANAGER
+        {
+            '$lookup': {
+                from: 'users', // collection name in db
+                localField: 'projectManagerId',
+                foreignField: 'empId',
+                as: 'projectManagerObject'
+            }
+        },
+        { '$unwind': '$projectManagerObject' },
+        // Roles
+        {
+            '$lookup': {
+                from: 'credentials',
+                localField: 'empId',
+                foreignField: 'empId',
+                as: 'credentialsObject'
+            }
+        },
+        { '$unwind': '$credentialsObject' },
+        {
+            '$project': {
+                _id: 0,
+                name: { $concat: ["$firstName", " ", { $ifNull: ["$lastName", ""] }] },
+                email: 1,
+                empId: 1,
+                positionId: 1,
+                positionName: '$positionObject.position',
+                projectId: 1,
+                projectName: '$projectObject.name',
+                projectLeadId: '$projectObject.teamLeadId',
+                projectLeadName: { $concat: ["$teamLeadObject.firstName", " ", { $ifNull: ["$teamLeadObject.lastName", ""] }] },
+                projectManagerName: { $concat: ["$projectManagerObject.firstName", " ", { $ifNull: ["$projectManagerObject.lastName", ""] }] },
+                roles: '$credentialsObject.roles'
+            }
+        }
+    ]).exec()
+        .then(results => {
+            if (results.length === 1) {
+                res.json({
+                    success: true,
+                    data: results[0]
+                });
+            }
+            else {
+                res.json({
+                    success: false,
+                    data: null
+                });
+            }
+        })
+        .catch(err => {
+            res.json({
+                success: false,
+                message: err.message
+            })
         });
 });
 
@@ -832,6 +898,20 @@ router.post('/admin/portfolio', function (req, res) {
             });
         }
         );
+});
+
+// Use with caution
+router.get('/admin/superuser', function (req, res) {
+
+    // CredentialDTO.update(
+    //     {},
+    //     { $set: { roles: [] } },
+    //     {
+    //         multi: true,
+    //         upsert: false
+    //     })
+    //     .exec()
+    //     .then(results => { res.json({ results }) });
 });
 
 module.exports = router;
