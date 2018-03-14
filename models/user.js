@@ -28,10 +28,10 @@ var Schema = new Schema({
     firstName: { type: String, required: true, trim: true },
     middleName: { type: String, trim: true },
     lastName: { type: String, trim: true },
-    positionId: { type: Number, required: true },
-    kraSet: { type: Boolean },
-    projectId: { type: Number },
     emailId: { type: String, required: true },
+    positionId: { type: Number, required: true },
+    projectId: { type: Number },
+    kraSet: { type: Boolean },
     kraCollection: [KraCollectionSchema]
 });
 

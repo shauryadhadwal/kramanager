@@ -1,0 +1,22 @@
+.msg-container {
+    font-family: "Roboto", sans-serif;
+    width: 500px;
+    overflow: hidden;
+    height: auto;
+}
+
+.heading {
+    font-family: 'Bowlby One SC', cursive;
+}
+
+h2 {
+    font-family: 'Anton', sans-serif;
+}
+
+.description {}
+
+.rating {}
+
+.comment {
+    font-family: 'Shadows Into Light', cursive;
+}

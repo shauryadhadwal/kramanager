@@ -6,7 +6,7 @@ var Schema = new Schema({
     password: { type: String, required: true, trim: true },
     verificationCode: { type: String, trim: true },
     isPasswordResetRequest: { type: Boolean, required: true },
-    roles: [{ type: Number }]
+    roles: [{ type: String, unique: true }]
 });
 
 module.exports = mongoose.model('Credential', Schema, 'credentials');

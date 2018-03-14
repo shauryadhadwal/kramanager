@@ -25,6 +25,7 @@ const options = {
     // If not connected, return errors immediately rather than waiting for reconnect
     bufferMaxEntries: 0
 };
+
 mongoose.connect(uri, options);
 // Use bluebird
 mongoose.Promise = require('bluebird');
@@ -33,7 +34,7 @@ const app = express();
 app.use(cors());
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('view engine', 'pug');
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
@@ -41,9 +42,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(__dirname + '/dist'));
-    
+
 // Prevent unauthorized access
-app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/', '/api/login', '/api/password/'] }));
+app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/', '/api/login', '/api/password/', '/api/admin/test'] }));
 
 //ROUTES
 app.use('/api', api);
@@ -58,7 +59,6 @@ app.use(function (req, res, next) {
     err.status = 404;
     next(err);
 });
-
 
 // error handler
 app.use(function (err, req, res, next) {

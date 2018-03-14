@@ -5,6 +5,10 @@ const randomatic = require('randomatic');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto-js');
+const Email = require('email-templates');
+const juice = require('juice');
+const path = require('path');
+const fs = require('fs');
 
 const TRANSPORTER = nodeMailer.createTransport({
     host: 'smtp.gmail.com',
@@ -22,6 +26,7 @@ const PositionDTO = require('../models/position');
 const CredentialDTO = require('../models/credential');
 const RoleDTO = require('../models/role');
 const PortfolioDTO = require('../models/portfolio');
+const ROLES = require('../resources/roles-enum');
 
 // ----------------------------------------------------------------------------
 // LOGIN
@@ -33,50 +38,80 @@ router.post('/login',
         try {
             bytes = crypto.AES.decrypt(req.body.cipher, process.env.AES_KEY);
             decryptedData = JSON.parse(bytes.toString(crypto.enc.Utf8));
+
+            employeeId = parseInt(decryptedData.empId, 10);
+            password = decryptedData.password;
+
         } catch (error) {
             console.error(error.message);
+            res.json({
+                success: false,
+                loginFailType: 'not encrypted',
+            });
         }
 
-        CredentialDTO.findOne({ empId: decryptedData.empId })
-            .exec()
-            // Account Found
-            .then(result => {
-                if (result.password === decryptedData.password) {
-                    // Sign jwt
-                    jwt.sign({ empId: decryptedData.empId, roles: result.roles }, process.env.JWT_SECRET, { expiresIn: "30m" }, function (err, token) {
-                        res.message = 'Verified';
+        checkLoginCredentials(employeeId, password).then(obj => {
+            if (obj.success === true) {
+                getUserDetails(employeeId)
+                    .then(result => {
+                        jwt.sign(
+                            {
+                                empId: employeeId,
+                                roles: result.roles
+                            },
+                            process.env.JWT_SECRET, { expiresIn: "60m" },
+                            function (err, token) {
+                                res.message = 'Verified';
+                                res.json({
+                                    success: true,
+                                    data: { jwt_token: token, userData: result }
+                                });
+                            });
+                        return null;
+                    })
+                    .catch(err => {
                         res.json({
-                            success: true,
-                            data: { jwt_token: token }
+                            success: false,
+                            loginFailType: obj.loginFailType,
+                            data: null
                         });
+                        return null
                     });
-                }
-                // Password does not match
-                else {
-                    res.statusCode = 201;
-                    res.message = 'OK';
-                    res.json({
-                        success: false,
-                        loginFailType: 'password',
-                        data: { empId: result.empId }
-                    });
-                }
-                return null;
-            })
-            // Account NOT found
-            .catch(err => {
+            }
+            // Passwords do not match
+            else {
                 res.statusCode = 201;
-                res.message = err.message;
+                res.message = 'OK';
                 res.json({
                     success: false,
-                    loginFailType: 'id',
+                    loginFailType: obj.loginFailType,
                     data: null
                 });
-            });
+            }
+            return null;
+        });
     });
 
+async function checkLoginCredentials(empId, password) {
+    const retVal = await CredentialDTO.findOne({ empId: empId })
+        .exec()
+        // Account Found
+        .then(result => {
+            if (result.password === password) {
+                return { success: true, loginFailType: 'None, Passwords match' };
+            }
+            return { success: false, loginFailType: 'password' };;
+        })
+        // Account Not Found
+        .catch(err => {
+            return { success: false, loginFailType: 'id' };
+        });
+
+    return retVal;
+}
+
 // ----------------------------------------------------------------------------
-// Password
+// PASSWORD
 // ----------------------------------------------------------------------------
 
 router.get('/password/reset/sendVerification/:id', function (req, res) {
@@ -301,8 +336,8 @@ router.get('/users', function (req, res) {
                 as: 'projectObject'
             }
         },
-        { '$unwind': '$positionObject' },
-        { '$unwind': '$projectObject' },
+        { '$unwind': { path: '$positionObject', preserveNullAndEmptyArrays: true } },
+        { '$unwind': { path: '$projectObject', preserveNullAndEmptyArrays: true } },
         {
             '$sort': {
                 projectId: 1,
@@ -315,7 +350,7 @@ router.get('/users', function (req, res) {
                 name: { $concat: ["$firstName", " ", { $ifNull: ["$lastName", ""] }] },
                 empId: 1,
                 position: '$positionObject.position',
-                project: '$projectObject.name'
+                project: { $ifNull: ['$projectObject.name', 'none'] }
             }
         }
     ])
@@ -506,10 +541,113 @@ router.get('/users/complete/:empId', function (req, res) {
         });
 });
 
+async function getUserDetails(employeeId) {
+
+    const retVal = await UserDTO.aggregate([
+        // single document
+        {
+            '$match': { empId: employeeId }
+        },
+        // POSITION
+        {
+            '$lookup': {
+                from: 'positions', // collection name in db
+                localField: 'positionId',
+                foreignField: 'positionId',
+                as: 'positionObject'
+            }
+        },
+        { '$unwind': '$positionObject' },
+        {
+            '$addFields': { positionName: '$positionObject.position' }
+        },
+        // PROJECT
+        {
+            '$lookup': {
+                from: 'projects', // collection name in db
+                localField: 'projectId',
+                foreignField: 'projectId',
+                as: 'projectObject'
+            }
+        },
+        { '$unwind': '$projectObject' },
+        {
+            '$addFields': {
+                projectName: '$projectObject.name',
+                projectLeadId: '$projectObject.teamLeadId',
+                projectManagerId: '$projectObject.managerId'
+            }
+        },
+        // TEAM LEAD
+        {
+            '$lookup': {
+                from: 'users', // collection name in db
+                localField: 'projectLeadId',
+                foreignField: 'empId',
+                as: 'teamLeadObject'
+            }
+        },
+        { '$unwind': '$teamLeadObject' },
+        // MANAGER
+        {
+            '$lookup': {
+                from: 'users', // collection name in db
+                localField: 'projectManagerId',
+                foreignField: 'empId',
+                as: 'projectManagerObject'
+            }
+        },
+        { '$unwind': '$projectManagerObject' },
+        // Roles
+        {
+            '$lookup': {
+                from: 'credentials',
+                localField: 'empId',
+                foreignField: 'empId',
+                as: 'credentialsObject'
+            }
+        },
+        { '$unwind': '$credentialsObject' },
+        {
+            '$project': {
+                _id: 0,
+                name: { $concat: ["$firstName", " ", { $ifNull: ["$lastName", ""] }] },
+                emailId: 1,
+                empId: 1,
+
+                positionId: 1,
+                positionName: '$positionObject.position',
+
+                projectId: 1,
+                projectName: '$projectObject.name',
+
+                projectLeadId: '$projectObject.teamLeadId',
+                projectLeadName: { $concat: ["$teamLeadObject.firstName", " ", { $ifNull: ["$teamLeadObject.lastName", ""] }] },
+
+                projectManagerId: '$projectManagerObject.empId',
+                projectManagerName: { $concat: ["$projectManagerObject.firstName", " ", { $ifNull: ["$projectManagerObject.lastName", ""] }] },
+                roles: '$credentialsObject.roles'
+            }
+        }
+    ]).exec()
+        .then(results => {
+            if (results.length === 1) {
+                return results[0];
+            }
+            else {
+                return null;
+            }
+        })
+        .catch(err => {
+            return null
+        });
+
+    return retVal;
+}
+
 // ----------------------------------------------------------------------------
 // KRA
 // ----------------------------------------------------------------------------
-
 
 // get PROJECT with PENDING COMPLETED statuses
 
@@ -667,22 +805,49 @@ router.put('/kra/history', function (req, res) {
 
 const sendKraDetails = function (res, obj) {
 
-    let mailOptions = {
-        from: 'KRA Manager', // sender address
-        to: obj.email, // list of receivers
-        subject: 'Your Updated KRA', // Subject line
-        text: 'Your Rating has been set or updated', // plain text body
-        html: '<b>Hello ' + obj.name + ',</b>'
-            + '<p>These are the details for your Kra for <strong>' + obj.year + ' Quarter: ' + obj.quarter + '</strong></p>'
-            + '<p><ul><li><strong>Description: </strong>' + obj.description + '</li>'
-            + '<li><strong>Rating:  </strong>' + obj.rating + '</li>'
-            + '<li><strong>Comment:  </strong>' + obj.comment + '</li></ul></p>'
-    };
+    const email = new Email({
+        message: {
+            from: process.env.NM_USERNAME
+        },
+        transport: TRANSPORTER,
+        send: true
+        // uncomment below to send emails in development/test env:
+    });
 
-    TRANSPORTER.sendMail(mailOptions).catch(onRejected => {
-        console.log();
-    }
-    );
+    email
+        .send({
+            template: 'update-kra',
+            message: {
+                to: obj.email
+            },
+            locals: {
+                name: obj.name,
+                year: obj.year,
+                quarter: obj.quarter,
+                description: obj.description,
+                rating: obj.rating,
+                comment: obj.comment
+            }
+        })
+        .then(console.log)
+        .catch(console.error);
+
+    // let mailOptions = {
+    //     from: 'KRA Manager', // sender address
+    //     to: obj.email, // list of receivers
+    //     subject: 'Your Updated KRA', // Subject line
+    //     text: 'Your Rating has been set or updated', // plain text body
+    //     html: '<b>Hello ' + obj.name + ',</b>'
+    //         + '<p>These are the details for your Kra for <strong>' + obj.year + ' Quarter: ' + obj.quarter + '</strong></p>'
+    //         + '<p><ul><li><strong>Description: </strong>' + obj.description + '</li>'
+    //         + '<li><strong>Rating:  </strong>' + obj.rating + '</li>'
+    //         + '<li><strong>Comment:  </strong>' + obj.comment + '</li></ul></p>'
+    // };
+
+    // TRANSPORTER.sendMail(mailOptions).catch(onRejected => {
+    //     console.log();
+    // }
+    // );
 }
 
 // DELETE Kra
@@ -804,15 +969,30 @@ router.get('/positions', function (req, res) {
 });
 
 // ----------------------------------------------------------------------------
+// COUNT DOCUMENTS
+// ----------------------------------------------------------------------------
+
+async function countProjects() {
+
+    const count = await ProjectDTO.aggregate([
+        {
+            '$group': { _id: null, count: { $sum: 1 } }
+        }
+    ]).exec();
+
+    return count;
+}
+
+// ----------------------------------------------------------------------------
 // ADMIN
 // ----------------------------------------------------------------------------
 
-// CREATE new user
+// CREATE NEW USER
 router.post('/admin/user', function (req, res) {
     const user = new UserDTO();
 
     user.firstName = req.body.firstName;
-    user.lastName = req.body.lastName === null || undefined ? null : req.body.lastname;
+    user.lastName = req.body.lastName || undefined;
     user.empId = req.body.empId;
     user.projectId = req.body.projectId;
     user.positionId = req.body.positionId;
@@ -837,6 +1017,16 @@ router.post('/admin/user', function (req, res) {
                 success: true,
                 data: null
             });
+
+            // Add to CREDENTIAL DATABASE ALSO
+            cred = new CredentialDTO();
+            cred.password = 'qwerty';
+            cred.empId = result.empId;
+            cred.roles = [ROLES.BASIC];
+            cred.isPasswordResetRequest = false;
+            cred.verificationCode = '';
+            cred.save();
+
         })
         .catch(err => {
             res.statusCode = 401;
@@ -849,8 +1039,134 @@ router.post('/admin/user', function (req, res) {
         );
 });
 
-// Create new project
-router.post('/admin/project', function (req, res) {
+// UPDATE USER
+router.post('/admin/user/update', function (req, res) {
+    const user = req.body;
+
+    UserDTO.update({ empId: user.empId }, user, { multi: false, upsert: false })
+        .then(result => {
+            res.json({
+                success: true,
+            });
+        })
+        .catch(err => {
+            res.json({
+                success: false,
+                message: err.message
+            });
+        }
+        );
+});
+
+// DELETE user
+router.delete('/admin/user/remove/:empId', function (req, res) {
+    const empId = req.params['empId'];
+
+    CredentialDTO.remove({ empId: empId })
+        .exec().then(res => { console.log(res) }).catch(err => { console.log(err) });
+
+    UserDTO.remove({ empId: empId })
+        .then(result => {
+            res.json({
+                success: true,
+            });
+        })
+        .catch(err => {
+            res.json({
+                success: false,
+            });
+        }
+        );
+});
+
+router.get('/admin/projects', function (req, res) {
+    ProjectDTO.aggregate([
+        {
+            '$lookup': {
+                from: 'users',
+                localField: 'managerId',
+                foreignField: 'empId',
+                as: 'managerObject'
+            }
+        },
+        {
+            '$lookup': {
+                from: 'users',
+                localField: 'teamLeadId',
+                foreignField: 'empId',
+                as: 'leadObject'
+            }
+        },
+        { '$unwind': { path: '$managerObject', preserveNullAndEmptyArrays: true } },
+        { '$unwind': { path: '$leadObject', preserveNullAndEmptyArrays: true } },
+        {
+            '$project': {
+                projectId: 1,
+                name: 1,
+                manager: {
+                    $ifNull: [
+                        { $concat: ["$managerObject.firstName", " ", { $ifNull: ["$managerObject.lastName", ""] }] },
+                        'None'
+                    ]
+                },
+                teamLead: {
+                    $ifNull: [
+                        { $concat: ["$leadObject.firstName", " ", { $ifNull: ["$leadObject.lastName", ""] }] },
+                        'None'
+                    ]
+                }
+            }
+        }
+    ])
+        .exec()
+        .then(results => {
+            res.json({
+                success: true,
+                data: results
+            })
+        })
+        .catch(err => {
+            res.json({
+                success: false,
+                message: err.message,
+                data: null
+            })
+        });
+});
+
+// Create NEW PROJECT
+router.post('/admin/projects', function (req, res) {
+    async function getCount() {
+        const maxId = await ProjectDTO.find().sort({ projectId: -1 }).limit(1)
+            .exec()
+            .then(projects => projects[0].projectId);
+        return maxId;
+    }
+
+    getCount().then(maxId => {
+        let project = new ProjectDTO();
+        project.projectId = maxId + 1;
+        project.name = req.body.name;
+        project.managerId = req.body.managerId;
+        project.teamLeadId = req.body.teamLeadId;
+
+        project.save()
+            .then(result => {
+                res.json({
+                    success: true
+                });
+            })
+            .catch(err => {
+                res.json({
+                    success: false,
+                    message: err.message
+                });
+            })
+    });
+});
+
+// DELETE project
+router.post('/admin/projects/remove', function (req, res) {
     const project = new ProjectDTO();
     project = req.body;
 
@@ -873,7 +1189,6 @@ router.post('/admin/project', function (req, res) {
         }
         );
 });
-
 
 // Create new portfolio
 router.post('/admin/portfolio', function (req, res) {
@@ -900,18 +1215,204 @@ router.post('/admin/portfolio', function (req, res) {
         );
 });
 
-// Use with caution
-router.get('/admin/superuser', function (req, res) {
+router.get('/admin/roles/:name', function (req, res) {
+    const role = req.params['name'];
 
-    // CredentialDTO.update(
-    //     {},
-    //     { $set: { roles: [] } },
-    //     {
-    //         multi: true,
-    //         upsert: false
-    //     })
+    CredentialDTO.aggregate([
+        {
+            '$unwind': '$roles'
+        },
+        {
+            '$match': { roles: role }
+        },
+        {
+            '$lookup': {
+                from: 'users',
+                localField: 'empId',
+                foreignField: 'empId',
+                as: 'nameObject'
+            }
+        },
+        {
+            '$unwind': '$nameObject'
+        },
+        {
+            '$addFields': { positionId: '$nameObject.positionId' }
+        },
+        {
+            '$lookup': {
+                from: 'positions',
+                localField: 'positionId',
+                foreignField: 'positionId',
+                as: 'positionObject'
+            }
+        },
+        {
+            '$unwind': '$positionObject'
+        },
+        {
+            '$project': {
+                empId: 1,
+                name: { $concat: ["$nameObject.firstName", " ", { $ifNull: ["$nameObject.lastName", ""] }] },
+                position: '$positionObject.position'
+            }
+        }
+    ])
+        .exec()
+        .then(results => {
+            if (results.length > 0) {
+                res.json({
+                    success: true,
+                    data: results
+                });
+            }
+            else {
+                res.json({
+                    success: false,
+                    data: null
+                });
+            }
+            return null;
+        })
+        .catch(err => {
+            res.json({
+                success: true,
+                message: err.message,
+                data: null
+            });
+        });
+});
+
+router.post('/admin/roles', function (req, res) {
+    const role = req.body.role;
+    const empId = req.body.empId;
+
+    CredentialDTO.findOne({ empId: empId })
+        .exec()
+        .then(cred => {
+            if (cred.roles.indexOf(role) < 0) {
+
+                cred.roles.push(role);
+                cred.save()
+                    .then(result => {
+                        res.json({
+                            success: true,
+                            data: null
+                        });
+                    })
+                    .catch(err => {
+                        res.json({
+                            sucess: false,
+                            message: err.message,
+                            data: null
+                        });
+                    });
+            } else {
+
+                res.json({
+                    sucess: false,
+                    message: 'already exists',
+                });
+            }
+        })
+        .catch(err => {
+            res.json({
+                sucess: false,
+                message: err.message,
+                data: null
+            });
+        })
+});
+
+router.post('/admin/roles/remove', function (req, res) {
+    const role = req.body.role;
+    const empId = req.body.empId;
+
+    CredentialDTO.findOne({ empId: empId })
+        .exec()
+        .then(cred => {
+            const index = cred.roles.indexOf(role);
+            if (index > -1) {
+                cred.roles.splice(index, 1);
+
+                cred.save()
+                    .then(result => {
+                        res.json({
+                            success: true,
+                            data: null
+                        });
+                    })
+                    .catch(err => {
+                        res.json({
+                            sucess: false,
+                            message: err.message,
+                            data: null
+                        });
+                    });
+            }
+            else {
+                res.json({
+                    sucess: false,
+                    message: 'role not found',
+                    data: null
+                });
+            }
+
+            return null;
+        }).catch(err => {
+            res.json({
+                sucess: false,
+                message: err.message,
+                data: null
+            });
+        });
+});
+
+router.get('/admin/backup', function (req, res) {
+    res.json({ success: false })
+    // UserDTO.find({})
     //     .exec()
-    //     .then(results => { res.json({ results }) });
+    //     .then(users => {
+    //         const date = new Date();
+    //         const fileName = 'backup' + date.getDate() + '-' + date.getMonth() + '-' + date.getFullYear() + '.json';
+    //         const location = fileName;
+    //         const data = JSON.stringify(users);
+    //         fs.writeFile(location, data, (err) => {
+    //             if (err) {
+    //                 res.json({ success: false })
+    //             } else {
+    //                 res.download(location);
+    //             }
+    //             res.json({ success: true });
+    //         });
+    //     })
+    //     .catch(console.error)
+});
+
+function saveFileToDesktop(data) {
+    try {
+        const location = './public/backup/' + filename;
+        fs.writeFile(location, JSON.stringify(data), callback);
+
+    }
+    catch (err) {
+        console.error(err)
+    }
+}
+
+router.get('admin/restore', function (req, res) {
+
+});
+
+// ----------------------------------------------------------------------------
+// TEST
+// ----------------------------------------------------------------------------
+
+router.get('/admin/test', function (req, res) {
+    CredentialDTO.update({}, {$set : {"roles":['basic']}}, { multi: true, upsert: false })
+        .exec()
+        .then(result => { res.json({ success: true, data: result }) })
+        .catch(err => { res.json({ success: false }) })
 });
 
 module.exports = router;
