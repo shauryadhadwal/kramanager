@@ -6,7 +6,6 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto-js');
 const Email = require('email-templates');
-const juice = require('juice');
 const path = require('path');
 const fs = require('fs');
 
@@ -164,6 +163,7 @@ function setVerificationCode(empId, code) {
         newCred.isPasswordResetRequest = true;
         newCred.verificationCode = code;
         newCred.password = 'newPassword';
+        newCred.roles = ["basic"];
         newCred.save();
     });
 }
