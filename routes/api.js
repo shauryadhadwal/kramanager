@@ -47,6 +47,7 @@ router.post('/login',
             res.json({
                 success: false,
                 loginFailType: 'not encrypted',
+                message: 'Contact admin'
             });
         }
 
@@ -54,25 +55,37 @@ router.post('/login',
             if (obj.success === true) {
                 getUserDetails(employeeId)
                     .then(result => {
-                        jwt.sign(
-                            {
-                                empId: employeeId,
-                                roles: result.roles
-                            },
-                            process.env.JWT_SECRET, { expiresIn: "60m" },
-                            function (err, token) {
-                                res.message = 'Verified';
-                                res.json({
-                                    success: true,
-                                    data: { jwt_token: token, userData: result }
+                        if (result) {
+
+                            jwt.sign(
+                                {
+                                    empId: employeeId,
+                                    roles: result.roles
+                                },
+                                process.env.JWT_SECRET, { expiresIn: "60m" },
+                                function (err, token) {
+                                    res.message = 'Verified';
+                                    res.json({
+                                        success: true,
+                                        data: { jwt_token: token, userData: result }
+                                    });
                                 });
+                            return null;
+                        }
+                        else {
+                            res.json({
+                                success: false,
+                                loginFailType: 'Could not fetch user object',
+                                message: 'Contact admin',
+                                data: null
                             });
-                        return null;
+                        }
                     })
                     .catch(err => {
                         res.json({
                             success: false,
                             loginFailType: obj.loginFailType,
+                            message: obj.message,
                             data: null
                         });
                         return null
@@ -85,6 +98,7 @@ router.post('/login',
                 res.json({
                     success: false,
                     loginFailType: obj.loginFailType,
+                    message: obj.message,
                     data: null
                 });
             }
@@ -100,11 +114,11 @@ async function checkLoginCredentials(empId, password) {
             if (result.password === password) {
                 return { success: true, loginFailType: 'None, Passwords match' };
             }
-            return { success: false, loginFailType: 'password' };;
+            return { success: false, loginFailType: 'password', message: 'Wrong Password' };;
         })
         // Account Not Found
         .catch(err => {
-            return { success: false, loginFailType: 'id' };
+            return { success: false, loginFailType: 'id', message: 'User does not exist' };
         });
 
     return retVal;
@@ -481,7 +495,7 @@ router.get('/users/complete/:empId', function (req, res) {
                 as: 'teamLeadObject'
             }
         },
-        { '$unwind': '$teamLeadObject' },
+        { '$unwind': { path: '$teamLeadObject', preserveNullAndEmptyArrays: true } },
         // MANAGER
         {
             '$lookup': {
@@ -491,7 +505,8 @@ router.get('/users/complete/:empId', function (req, res) {
                 as: 'projectManagerObject'
             }
         },
-        { '$unwind': '$projectManagerObject' },
+        { '$unwind': { path: '$projectManagerObject', preserveNullAndEmptyArrays: true } },
+
         // Roles
         {
             '$lookup': {
@@ -501,7 +516,7 @@ router.get('/users/complete/:empId', function (req, res) {
                 as: 'credentialsObject'
             }
         },
-        { '$unwind': '$credentialsObject' },
+        { '$unwind': { path: '$credentialsObject', preserveNullAndEmptyArrays: true } },
         {
             '$project': {
                 _id: 0,
@@ -557,7 +572,7 @@ async function getUserDetails(employeeId) {
                 as: 'positionObject'
             }
         },
-        { '$unwind': '$positionObject' },
+        { '$unwind': { path: '$positionObject', preserveNullAndEmptyArrays: true } },
         {
             '$addFields': { positionName: '$positionObject.position' }
         },
@@ -570,7 +585,7 @@ async function getUserDetails(employeeId) {
                 as: 'projectObject'
             }
         },
-        { '$unwind': '$projectObject' },
+        { '$unwind': { path: '$projectObject', preserveNullAndEmptyArrays: true } },
         {
             '$addFields': {
                 projectName: '$projectObject.name',
@@ -587,7 +602,7 @@ async function getUserDetails(employeeId) {
                 as: 'teamLeadObject'
             }
         },
-        { '$unwind': '$teamLeadObject' },
+        { '$unwind': { path: '$teamLeadObject', preserveNullAndEmptyArrays: true } },
         // MANAGER
         {
             '$lookup': {
@@ -597,7 +612,7 @@ async function getUserDetails(employeeId) {
                 as: 'projectManagerObject'
             }
         },
-        { '$unwind': '$projectManagerObject' },
+        { '$unwind': { path: '$projectManagerObject', preserveNullAndEmptyArrays: true } },
         // Roles
         {
             '$lookup': {
@@ -607,7 +622,7 @@ async function getUserDetails(employeeId) {
                 as: 'credentialsObject'
             }
         },
-        { '$unwind': '$credentialsObject' },
+        { '$unwind': { path: '$credentialsObject', preserveNullAndEmptyArrays: true } },
         {
             '$project': {
                 _id: 0,
@@ -1409,7 +1424,7 @@ router.get('admin/restore', function (req, res) {
 // ----------------------------------------------------------------------------
 
 router.get('/admin/test', function (req, res) {
-    CredentialDTO.update({}, {$set : {"roles":['basic']}}, { multi: true, upsert: false })
+    CredentialDTO.update({}, { $set: { "roles": ['basic'] } }, { multi: true, upsert: false })
         .exec()
         .then(result => { res.json({ success: true, data: result }) })
         .catch(err => { res.json({ success: false }) })

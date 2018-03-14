@@ -1779,22 +1779,23 @@ var LoginComponent = /** @class */ (function () {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return LoginService; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__core_storage_service__ = __webpack_require__("../../../../../src/app/core/storage.service.ts");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__angular_core__ = __webpack_require__("../../../core/esm5/core.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__angular_http__ = __webpack_require__("../../../http/esm5/http.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__environments_environment__ = __webpack_require__("../../../../../src/environments/environment.ts");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4_angular2_jwt__ = __webpack_require__("../../../../angular2-jwt/angular2-jwt.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4_angular2_jwt___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_4_angular2_jwt__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5_rxjs_add_operator_map__ = __webpack_require__("../../../../rxjs/_esm5/add/operator/map.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6_rxjs_add_operator_catch__ = __webpack_require__("../../../../rxjs/_esm5/add/operator/catch.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_7_rxjs_add_operator_mergeMap__ = __webpack_require__("../../../../rxjs/_esm5/add/operator/mergeMap.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__core_global_events_manager_service__ = __webpack_require__("../../../../../src/app/core/global-events-manager.service.ts");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_9__angular_router__ = __webpack_require__("../../../router/esm5/router.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_10_moment__ = __webpack_require__("../../../../moment/moment.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_10_moment___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_10_moment__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_11_jwt_decode__ = __webpack_require__("../../../../jwt-decode/lib/index.js");
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_11_jwt_decode___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_11_jwt_decode__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_12__shared_utils__ = __webpack_require__("../../../../../src/app/authentication/shared/utils.ts");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__core_snackbar_service__ = __webpack_require__("../../../../../src/app/core/snackbar.service.ts");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__core_storage_service__ = __webpack_require__("../../../../../src/app/core/storage.service.ts");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__angular_core__ = __webpack_require__("../../../core/esm5/core.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__angular_http__ = __webpack_require__("../../../http/esm5/http.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__environments_environment__ = __webpack_require__("../../../../../src/environments/environment.ts");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5_angular2_jwt__ = __webpack_require__("../../../../angular2-jwt/angular2-jwt.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5_angular2_jwt___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_5_angular2_jwt__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6_rxjs_add_operator_map__ = __webpack_require__("../../../../rxjs/_esm5/add/operator/map.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_7_rxjs_add_operator_catch__ = __webpack_require__("../../../../rxjs/_esm5/add/operator/catch.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8_rxjs_add_operator_mergeMap__ = __webpack_require__("../../../../rxjs/_esm5/add/operator/mergeMap.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_9__core_global_events_manager_service__ = __webpack_require__("../../../../../src/app/core/global-events-manager.service.ts");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_10__angular_router__ = __webpack_require__("../../../router/esm5/router.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_11_moment__ = __webpack_require__("../../../../moment/moment.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_11_moment___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_11_moment__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_12_jwt_decode__ = __webpack_require__("../../../../jwt-decode/lib/index.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_12_jwt_decode___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_12_jwt_decode__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_13__shared_utils__ = __webpack_require__("../../../../../src/app/authentication/shared/utils.ts");
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -1850,24 +1851,26 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 
 
 
-var moment = __WEBPACK_IMPORTED_MODULE_10_moment__;
+
+var moment = __WEBPACK_IMPORTED_MODULE_11_moment__;
 
 
 var LoginService = /** @class */ (function () {
-    function LoginService(http, authHttp, globalEventsManager, router, storageService) {
+    function LoginService(http, authHttp, globalEventsManager, router, storageService, snackbarService) {
         this.http = http;
         this.authHttp = authHttp;
         this.globalEventsManager = globalEventsManager;
         this.router = router;
         this.storageService = storageService;
-        this.apiUrl = __WEBPACK_IMPORTED_MODULE_3__environments_environment__["a" /* environment */].apiUrl;
-        this.jwtHelper = new __WEBPACK_IMPORTED_MODULE_4_angular2_jwt__["JwtHelper"]();
+        this.snackbarService = snackbarService;
+        this.apiUrl = __WEBPACK_IMPORTED_MODULE_4__environments_environment__["a" /* environment */].apiUrl;
+        this.jwtHelper = new __WEBPACK_IMPORTED_MODULE_5_angular2_jwt__["JwtHelper"]();
     }
     LoginService.prototype.login = function (obj) {
         var _this = this;
-        var headers = new __WEBPACK_IMPORTED_MODULE_2__angular_http__["Headers"]({ 'Content-Type': 'application/json' });
-        var options = new __WEBPACK_IMPORTED_MODULE_2__angular_http__["RequestOptions"]({ headers: headers });
-        var encrypted = Object(__WEBPACK_IMPORTED_MODULE_12__shared_utils__["a" /* encryptPayload */])(obj).toString();
+        var headers = new __WEBPACK_IMPORTED_MODULE_3__angular_http__["Headers"]({ 'Content-Type': 'application/json' });
+        var options = new __WEBPACK_IMPORTED_MODULE_3__angular_http__["RequestOptions"]({ headers: headers });
+        var encrypted = Object(__WEBPACK_IMPORTED_MODULE_13__shared_utils__["a" /* encryptPayload */])(obj).toString();
         var body = JSON.stringify({ cipher: encrypted });
         return this.http.post(this.apiUrl + '/login', body, options)
             .map(function (res) { return _this.handleAuthentication(res, _this); });
@@ -1879,19 +1882,22 @@ var LoginService = /** @class */ (function () {
             var userData = response.data.userData;
             self.storageService.saveItem('jwt_token', token); // save token in storage
             self.storageService.saveUserObject(userData);
-            return {
-                success: response.success,
-                loginFailType: response.loginFailType
-            };
         }
+        else {
+            this.snackbarService.openSnackBar(response.message);
+        }
+        return {
+            success: response.success,
+            loginFailType: response.loginFailType
+        };
     };
     LoginService.prototype.isAuthenticated = function () {
         var token = this.storageService.getItem('jwt_token');
         if (token != null) {
-            var expiry = moment.unix(__WEBPACK_IMPORTED_MODULE_11_jwt_decode__(token).exp);
+            var expiry = moment.unix(__WEBPACK_IMPORTED_MODULE_12_jwt_decode__(token).exp);
             // Check if token has expired
             if (moment(expiry).isAfter(moment.now())) {
-                var empId = parseInt(__WEBPACK_IMPORTED_MODULE_11_jwt_decode__(token).empId, 10);
+                var empId = parseInt(__WEBPACK_IMPORTED_MODULE_12_jwt_decode__(token).empId, 10);
                 if (empId === this.storageService.USER_OBJECT.empId) {
                     this.globalEventsManager.loggedIn();
                     return true;
@@ -1957,12 +1963,13 @@ var LoginService = /** @class */ (function () {
         return this.authHttp.get(url).map(function (res) { return res.json() || null; });
     };
     LoginService = __decorate([
-        Object(__WEBPACK_IMPORTED_MODULE_1__angular_core__["Injectable"])(),
-        __metadata("design:paramtypes", [__WEBPACK_IMPORTED_MODULE_2__angular_http__["Http"],
-            __WEBPACK_IMPORTED_MODULE_4_angular2_jwt__["AuthHttp"],
-            __WEBPACK_IMPORTED_MODULE_8__core_global_events_manager_service__["a" /* GlobalEventsManagerService */],
-            __WEBPACK_IMPORTED_MODULE_9__angular_router__["b" /* Router */],
-            __WEBPACK_IMPORTED_MODULE_0__core_storage_service__["a" /* StorageService */]])
+        Object(__WEBPACK_IMPORTED_MODULE_2__angular_core__["Injectable"])(),
+        __metadata("design:paramtypes", [__WEBPACK_IMPORTED_MODULE_3__angular_http__["Http"],
+            __WEBPACK_IMPORTED_MODULE_5_angular2_jwt__["AuthHttp"],
+            __WEBPACK_IMPORTED_MODULE_9__core_global_events_manager_service__["a" /* GlobalEventsManagerService */],
+            __WEBPACK_IMPORTED_MODULE_10__angular_router__["b" /* Router */],
+            __WEBPACK_IMPORTED_MODULE_1__core_storage_service__["a" /* StorageService */],
+            __WEBPACK_IMPORTED_MODULE_0__core_snackbar_service__["a" /* SnackbarService */]])
     ], LoginService);
     return LoginService;
 }());
@@ -2194,12 +2201,14 @@ function decryptPayload(ciphertextStr) {
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__angular_common__ = __webpack_require__("../../../common/esm5/common.js");
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__global_events_manager_service__ = __webpack_require__("../../../../../src/app/core/global-events-manager.service.ts");
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__storage_service__ = __webpack_require__("../../../../../src/app/core/storage.service.ts");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__snackbar_service__ = __webpack_require__("../../../../../src/app/core/snackbar.service.ts");
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+
 
 
 
@@ -2215,7 +2224,8 @@ var CoreModule = /** @class */ (function () {
             declarations: [],
             providers: [
                 __WEBPACK_IMPORTED_MODULE_2__global_events_manager_service__["a" /* GlobalEventsManagerService */],
-                __WEBPACK_IMPORTED_MODULE_3__storage_service__["a" /* StorageService */]
+                __WEBPACK_IMPORTED_MODULE_3__storage_service__["a" /* StorageService */],
+                __WEBPACK_IMPORTED_MODULE_4__snackbar_service__["a" /* SnackbarService */]
             ]
         })
     ], CoreModule);
@@ -2260,6 +2270,44 @@ var GlobalEventsManagerService = /** @class */ (function () {
         __metadata("design:paramtypes", [])
     ], GlobalEventsManagerService);
     return GlobalEventsManagerService;
+}());
+
+
+
+/***/ }),
+
+/***/ "../../../../../src/app/core/snackbar.service.ts":
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return SnackbarService; });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__angular_core__ = __webpack_require__("../../../core/esm5/core.js");
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__angular_material__ = __webpack_require__("../../../material/esm5/material.es5.js");
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+
+
+var SnackbarService = /** @class */ (function () {
+    function SnackbarService(snackBar) {
+        this.snackBar = snackBar;
+    }
+    SnackbarService.prototype.openSnackBar = function (message) {
+        this.snackBar.open(message, '', {
+            duration: 2000,
+        });
+    };
+    SnackbarService = __decorate([
+        Object(__WEBPACK_IMPORTED_MODULE_0__angular_core__["Injectable"])(),
+        __metadata("design:paramtypes", [__WEBPACK_IMPORTED_MODULE_1__angular_material__["B" /* MatSnackBar */]])
+    ], SnackbarService);
+    return SnackbarService;
 }());
 
 
