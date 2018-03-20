@@ -399,7 +399,7 @@ router.get('/users/project/:projId/:year/:qtr', function (req, res) {
         .exec()
         .then((results) => {
 
-            // Modify Kra Status for each employee before sending. 
+            // Modify Kra Status for each employee before sending.
             // Get Kra by Year and Quarter
             results.map(user => {
                 let yearIndex = user.kraCollection.findIndex(x => x.year == year);
@@ -663,6 +663,99 @@ async function getUserDetails(employeeId) {
 // ----------------------------------------------------------------------------
 // KRA
 // ----------------------------------------------------------------------------
+
+// get Projects by MANAGER ID
+
+router.post('/kra/portfolio/projects', function (req, res) {
+    year = parseInt(req.body.year, 10);
+    quarter = parseInt(req.body.quarter, 10);
+    managerId = parseInt(req.body.managerId, 10);
+
+    yearValue = year - 2018;
+    quarterValue = quarter - 1;
+
+    ProjectDTO.aggregate([
+        {
+            '$match': { 'managerId': managerId }
+        },
+        {
+            '$lookup': {
+                from: 'users',
+                localField: 'projectId',
+                foreignField: 'projectId',
+                as: 'usersList'
+            }
+        },
+        {
+            '$lookup': {
+                from: 'users',
+                localField: 'teamLeadId',
+                foreignField: 'empId',
+                as: 'teamLeadObject'
+            }
+        },
+        { '$unwind': { path: "$teamLeadObject", preserveNullAndEmptyArrays: true } },
+        {
+            '$addFields': {
+                'teamLeadName': { $concat: ["$teamLeadObject.firstName", " ", { $ifNull: ["$teamLeadObject.lastName", ""] }] },
+                "total": { $size: "$usersList" },
+                "kraCounts": {
+                    $map: {
+                        input: "$usersList",
+                        as: "user",
+                        in: {
+                            "kraCount": {
+                                "$arrayElemAt": [
+                                    {
+                                        "$map": {
+                                            "input": {
+                                                "$slice": [
+                                                    {
+                                                        "$map": {
+                                                            "input": { "$slice": ["$$user.kraCollection", yearValue, 1] },
+                                                            "as": "el",
+                                                            "in": "$$el.quarters"
+                                                        }
+                                                    },
+                                                    0, 1
+                                                ]
+                                            },
+                                            "as": "el",
+                                            "in": { $size: { "$arrayElemAt": ["$$el.kra", quarterValue] } }
+                                        }
+                                    },
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                usersList: 0,
+                teamLeadObject: 0
+            }
+        }
+    ]).exec()
+        .then(result => {
+            res.statusCode = 200;
+            res.statusMessage = 'OK';
+            res.json({
+                data: result
+            });
+        })
+        .catch((err) => {
+            res.statusCode = 401;
+            res.statusMessage = err.message
+            res.json({
+                message: err,
+                data: null
+            });
+        });
+});
+
 
 // get PROJECT with PENDING COMPLETED statuses
 
@@ -1423,11 +1516,138 @@ router.get('admin/restore', function (req, res) {
 // TEST
 // ----------------------------------------------------------------------------
 
-router.get('/admin/test', function (req, res) {
-    CredentialDTO.update({}, { $set: { "roles": ['basic'] } }, { multi: true, upsert: false })
-        .exec()
-        .then(result => { res.json({ success: true, data: result }) })
-        .catch(err => { res.json({ success: false }) })
+router.post('/admin/test', function (req, res) {
+    year = parseInt(req.body.year, 10);
+    quarter = parseInt(req.body.quarter, 10);
+    managerId = parseInt(req.body.managerId, 10);
+
+    yearValue = year - 2018;
+    quarterValue = quarter - 1;
+
+    ProjectDTO.aggregate([
+        {
+            '$match': { 'managerId': managerId }
+        },
+        {
+            '$lookup': {
+                from: 'users',
+                localField: 'projectId',
+                foreignField: 'projectId',
+                as: 'usersList'
+            }
+        },
+        {
+            '$lookup': {
+                from: 'users',
+                localField: 'teamLeadId',
+                foreignField: 'empId',
+                as: 'teamLeadObject'
+            }
+        },
+        { '$unwind': { path: "$teamLeadObject", preserveNullAndEmptyArrays: true } },
+        {
+            '$addFields': {
+                'teamLeadName': { $concat: ["$teamLeadObject.firstName", " ", { $ifNull: ["$teamLeadObject.lastName", ""] }] },
+                "total": { $size: "$usersList" },
+                "kraCounts": {
+                    $map: {
+                        input: "$usersList",
+                        as: "user",
+                        in: {
+                            "kraCount": {
+                                "$arrayElemAt": [
+                                    {
+                                        "$map": {
+                                            "input": {
+                                                "$slice": [
+                                                    {
+                                                        "$map": {
+                                                            "input": { "$slice": ["$$user.kraCollection", yearValue, 1] },
+                                                            "as": "el",
+                                                            "in": "$$el.quarters"
+                                                        }
+                                                    },
+                                                    0, 1
+                                                ]
+                                            },
+                                            "as": "el",
+                                            "in": { $size: { "$arrayElemAt": ["$$el.kra", quarterValue] } }
+                                        }
+                                    },
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                usersList: 0,
+                teamLeadObject: 0
+            }
+        }
+    ]).exec((err, result) => {
+        if (err) {
+            res.json(err);
+        }
+        res.json(result);
+    });
+
+    // UserDTO.aggregate([
+    //     {
+    //         "$match": { projectId: 201 }
+    //     },
+    //     {
+    //         $project: {
+    //             "name": "$firstName",
+    //             "kraCount": {
+    //                 "$arrayElemAt": [
+    //                     {
+    //                         "$map": {
+    //                             "input": {
+    //                                 "$slice": [
+    //                                     {
+    //                                         "$map": {
+    //                                             "input": { "$slice": ["$kraCollection", yearValue, 1] },
+    //                                             "as": "el",
+    //                                             "in": "$$el.quarters"
+    //                                         }
+    //                                     },
+    //                                     0, 1
+    //                                 ]
+    //                             },
+    //                             "as": "el",
+    //                             "in": { $size: { "$arrayElemAt": ["$$el.kra", quarterValue] } }
+    //                         }
+    //                     },
+    //                     0
+    //                 ]
+    //             },
+    //         }
+    //     },
+    //     {
+    //         "$group": {
+    //             _id: {
+    //                 count: "$kraCount"
+    //             },
+    //             total: { $sum: 1 }
+    //             // pending: { $lte: ["$kraCount", 1] }
+    //         }
+    //     },
+    //     {
+    //         "$project": {
+    //             "pending": { $lte: ["$_id.count", 1] }
+    //         }
+    //     }
+    // ])
+    //     .exec((err, result) => {
+    //         if (err) {
+    //             res.json(err);
+    //         }
+    //         res.json(result);
+    //     });
 });
 
 module.exports = router;

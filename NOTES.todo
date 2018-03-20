@@ -1,3 +1,6 @@
+FEATURES:
+    ☐ Send mail to MANAGER and TEAM LEAD on delete KRA or change KRA
+    ☐ Remove Feature Search Employees
 ToDo:
     ☐ Make all exec() to exec().then().catch()
     ☐ 
