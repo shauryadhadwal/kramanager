@@ -634,13 +634,24 @@ async function getUserDetails(employeeId) {
                 positionName: '$positionObject.position',
 
                 projectId: 1,
-                projectName: '$projectObject.name',
+                projectName: { $ifNull: ["$projectObject.name", "Not assigned"] },
 
                 projectLeadId: '$projectObject.teamLeadId',
-                projectLeadName: { $concat: ["$teamLeadObject.firstName", " ", { $ifNull: ["$teamLeadObject.lastName", ""] }] },
+                projectLeadName:
+                    {
+                        $ifNull: [
+                            { $concat: ["$teamLeadObject.firstName", " ", { $ifNull: ["$teamLeadObject.lastName", ""] }] },
+                            "Not Assigned"
+                        ]
+                    },
 
                 projectManagerId: '$projectManagerObject.empId',
-                projectManagerName: { $concat: ["$projectManagerObject.firstName", " ", { $ifNull: ["$projectManagerObject.lastName", ""] }] },
+                projectManagerName: {
+                    $ifNull: [
+                        { $concat: ["$projectManagerObject.firstName", " ", { $ifNull: ["$projectManagerObject.lastName", ""] }] },
+                        "Not Assigned"
+                    ]
+                },
                 roles: '$credentialsObject.roles'
             }
         }
@@ -1051,6 +1062,39 @@ router.put('/kra/create', function (req, res) {
         }
         );
 })
+
+router.post('/kra/sendMail', function (req, res) {
+
+    const _subject = req.body.subject;
+    const _recipient = req.body.recipient
+    const _name = req.body.name;
+    const _content = req.body.content;
+
+    const email = new Email({
+        message: {
+            from: process.env.NM_USERNAME
+        },
+        transport: TRANSPORTER,
+        send: true
+    });
+
+    email
+        .send({
+            template: 'custom-mail',
+            message: {
+                to: _recipient
+            },
+            locals: {
+                name: _name,
+                content: _content,
+                subject: _subject
+            }
+        })
+        .then(console.log)
+        .catch(console.error);
+
+    res.end();
+});
 
 // ----------------------------------------------------------------------------
 // POSITIONS
@@ -1517,137 +1561,34 @@ router.get('admin/restore', function (req, res) {
 // ----------------------------------------------------------------------------
 
 router.post('/admin/test', function (req, res) {
-    year = parseInt(req.body.year, 10);
-    quarter = parseInt(req.body.quarter, 10);
-    managerId = parseInt(req.body.managerId, 10);
+    const _subject = req.body.subject;
+    const _recipient = req.body.recipient
+    const _name = req.body.name;
+    const _content = req.body.content;
 
-    yearValue = year - 2018;
-    quarterValue = quarter - 1;
-
-    ProjectDTO.aggregate([
-        {
-            '$match': { 'managerId': managerId }
+    const email = new Email({
+        message: {
+            from: process.env.NM_USERNAME
         },
-        {
-            '$lookup': {
-                from: 'users',
-                localField: 'projectId',
-                foreignField: 'projectId',
-                as: 'usersList'
-            }
-        },
-        {
-            '$lookup': {
-                from: 'users',
-                localField: 'teamLeadId',
-                foreignField: 'empId',
-                as: 'teamLeadObject'
-            }
-        },
-        { '$unwind': { path: "$teamLeadObject", preserveNullAndEmptyArrays: true } },
-        {
-            '$addFields': {
-                'teamLeadName': { $concat: ["$teamLeadObject.firstName", " ", { $ifNull: ["$teamLeadObject.lastName", ""] }] },
-                "total": { $size: "$usersList" },
-                "kraCounts": {
-                    $map: {
-                        input: "$usersList",
-                        as: "user",
-                        in: {
-                            "kraCount": {
-                                "$arrayElemAt": [
-                                    {
-                                        "$map": {
-                                            "input": {
-                                                "$slice": [
-                                                    {
-                                                        "$map": {
-                                                            "input": { "$slice": ["$$user.kraCollection", yearValue, 1] },
-                                                            "as": "el",
-                                                            "in": "$$el.quarters"
-                                                        }
-                                                    },
-                                                    0, 1
-                                                ]
-                                            },
-                                            "as": "el",
-                                            "in": { $size: { "$arrayElemAt": ["$$el.kra", quarterValue] } }
-                                        }
-                                    },
-                                    0
-                                ]
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        {
-            $project: {
-                usersList: 0,
-                teamLeadObject: 0
-            }
-        }
-    ]).exec((err, result) => {
-        if (err) {
-            res.json(err);
-        }
-        res.json(result);
+        transport: TRANSPORTER,
+        send: false
     });
 
-    // UserDTO.aggregate([
-    //     {
-    //         "$match": { projectId: 201 }
-    //     },
-    //     {
-    //         $project: {
-    //             "name": "$firstName",
-    //             "kraCount": {
-    //                 "$arrayElemAt": [
-    //                     {
-    //                         "$map": {
-    //                             "input": {
-    //                                 "$slice": [
-    //                                     {
-    //                                         "$map": {
-    //                                             "input": { "$slice": ["$kraCollection", yearValue, 1] },
-    //                                             "as": "el",
-    //                                             "in": "$$el.quarters"
-    //                                         }
-    //                                     },
-    //                                     0, 1
-    //                                 ]
-    //                             },
-    //                             "as": "el",
-    //                             "in": { $size: { "$arrayElemAt": ["$$el.kra", quarterValue] } }
-    //                         }
-    //                     },
-    //                     0
-    //                 ]
-    //             },
-    //         }
-    //     },
-    //     {
-    //         "$group": {
-    //             _id: {
-    //                 count: "$kraCount"
-    //             },
-    //             total: { $sum: 1 }
-    //             // pending: { $lte: ["$kraCount", 1] }
-    //         }
-    //     },
-    //     {
-    //         "$project": {
-    //             "pending": { $lte: ["$_id.count", 1] }
-    //         }
-    //     }
-    // ])
-    //     .exec((err, result) => {
-    //         if (err) {
-    //             res.json(err);
-    //         }
-    //         res.json(result);
-    //     });
+    email
+        .send({
+            template: 'custom-mail',
+            message: {
+                to: _recipient
+            },
+            locals: {
+                name: _name,
+                content: _content,
+                subject: _subject
+            }
+        })
+        .then(console.log)
+        .catch(console.error);
+    res.end();
 });
 
 module.exports = router;
