@@ -767,7 +767,6 @@ router.post('/kra/portfolio/projects', function (req, res) {
         });
 });
 
-
 // get PROJECT with PENDING COMPLETED statuses
 
 router.get('/kra/projects/:year/:qtr', function (req, res) {
@@ -1561,34 +1560,7 @@ router.get('admin/restore', function (req, res) {
 // ----------------------------------------------------------------------------
 
 router.post('/admin/test', function (req, res) {
-    const _subject = req.body.subject;
-    const _recipient = req.body.recipient
-    const _name = req.body.name;
-    const _content = req.body.content;
-
-    const email = new Email({
-        message: {
-            from: process.env.NM_USERNAME
-        },
-        transport: TRANSPORTER,
-        send: false
-    });
-
-    email
-        .send({
-            template: 'custom-mail',
-            message: {
-                to: _recipient
-            },
-            locals: {
-                name: _name,
-                content: _content,
-                subject: _subject
-            }
-        })
-        .then(console.log)
-        .catch(console.error);
-    res.end();
+    
 });
 
 module.exports = router;
