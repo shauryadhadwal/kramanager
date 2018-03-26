@@ -44,7 +44,10 @@ app.use(cookieParser());
 app.use(express.static(__dirname + '/dist'));
 
 // Prevent unauthorized access
-app.use(expressJwt({ secret: process.env.JWT_SECRET}).unless({ path: ['/api/login', /\/api\/password/i, '/api/admin/test'] }));
+if (process.env.NODE_ENV == 'production' || process.env.NODE_ENV == 'development') {
+    app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/api/login', /\/api\/password/i, '/api/admin/test'] }))
+}
+
 //ROUTES
 app.use('/api', api);
 
@@ -61,16 +64,20 @@ app.use(function (req, res, next) {
 
 // error handler
 app.use(function (err, req, res, next) {
-    if (err.name === 'UnauthorizedError') {
+    if (401 == err.status) {
         res.sendFile(path.join(__dirname, 'dist/index.html'));
     }
-    // set locals, only providing error in development
-    res.locals.message = err.message;
-    res.locals.error = req.app.get('env') === 'development' ? err : {};
-    // render the error page
-    res.status(err.status || 500);
-    res.render('error');
+    else if (err.name === 'UnauthorizedError') {
+        res.sendFile(path.join(__dirname, 'dist/index.html'));
+    }
+    else {
+        // set locals, only providing error in development
+        res.locals.message = err.message;
+        res.locals.error = req.app.get('env') === 'development' ? err : {};
+        // render the error page
+        res.status(err.status || 500);
+        res.render('error');
+    }
 });
-
 
 module.exports = app;
