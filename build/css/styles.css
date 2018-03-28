@@ -13,12 +13,8 @@ h2 {
     font-family: 'Anton', sans-serif;
 }
 h3{
-    color: goldenrod;
+    color: rgb(197, 0, 0);
 }
-
-.description {}
-
-.rating {}
 
 .comment {
     font-family: 'Shadows Into Light', cursive;
