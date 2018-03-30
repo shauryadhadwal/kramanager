@@ -6,7 +6,7 @@
 
 /* -------------------------------------------------------------------
  BUTTONS 
-----------------------------------------------------------------------*/.gs-btn-color-primary{background-color:#283593;color:#fff!important}.gs-btn-color-primary:hover{background-color:#4f5ab8}
+----------------------------------------------------------------------*/.gs-btn-color-primary{background-color:#283593;color:#fff!important}.gs-btn-color-primary:hover{background-color:#4f5ab8}.gs-btn-color-green:hover{background-color:#43a047;color:#fff!important}.gs-btn-color-red:hover{background-color:#e53935;color:#fff!important}.gs-btn-color-yellow:hover{background-color:gold;color:#fff!important}
 
 /*--------------
  Scrollbar
