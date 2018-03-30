@@ -10,6 +10,7 @@ var KraSchema = new Schema({
     serial: { type: Number, required: true },
     rating: { type: Number, max: 5 },
     description: { type: String, required: true },
+    carriedForward: {type: Boolean},
     history: [KraHistorySchema]
 });
 

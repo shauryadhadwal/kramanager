@@ -44,7 +44,7 @@ app.use(cookieParser());
 app.use(express.static(__dirname + '/dist'));
 
 // Prevent unauthorized access
-if (process.env.NODE_ENV == 'production' || process.env.NODE_ENV == 'development') {
+if (process.env.NODE_ENV == 'production') {
     app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/api/login', /\/api\/password/i, '/api/admin/test'] }))
 }
 

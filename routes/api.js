@@ -879,6 +879,7 @@ router.get('/kra/:empId/:year/:qtr', function (req, res) {
 // Update RATING
 router.put('/kra/history', function (req, res) {
 
+    let sendMsg = true;
     UserDTO.findOne({ empId: req.body.employeeId })
         .exec()
         .then((user) => {
@@ -893,6 +894,13 @@ router.put('/kra/history', function (req, res) {
             let serialIndex = user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra.findIndex(x => x.serial == req.body.kraSerial);
             user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].history.push(req.body.updatedHistory);
             user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].rating = req.body.updatedHistory.rating;
+
+            // Check for carry forward
+            if (req.body.updatedHistory.comment.includes('carried forward')) {
+                user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].carriedForward = true;
+                sendMsg = false;
+            }
+
             user.save().then(result => {
                 res.statusCode = 200;
                 res.statusMessage = 'Saved'
@@ -900,16 +908,18 @@ router.put('/kra/history', function (req, res) {
                     success: true,
                     data: null
                 });
-                sendKraDetails(res, {
-                    name: user.firstName,
-                    email: user.emailId,
-                    quarter: req.body.quarter,
-                    year: req.body.year,
-                    kraSerial: req.body.kraSerial,
-                    rating: req.body.updatedHistory.rating,
-                    comment: req.body.updatedHistory.comment,
-                    description: user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].description
-                });
+                if (sendMsg) {
+                    sendKraDetails(res, {
+                        name: user.firstName,
+                        email: user.emailId,
+                        quarter: req.body.quarter,
+                        year: req.body.year,
+                        kraSerial: req.body.kraSerial,
+                        rating: req.body.updatedHistory.rating,
+                        comment: req.body.updatedHistory.comment,
+                        description: user.kraCollection[yearIndex].quarters[req.body.quarter - 1].kra[serialIndex].description
+                    });
+                }
             });
         })
         .catch((err) => {
@@ -928,7 +938,7 @@ const sendKraDetails = function (res, obj) {
             from: process.env.NM_USERNAME
         },
         transport: TRANSPORTER,
-        send: true
+        send: false
         // uncomment below to send emails in development/test env:
     });
 
@@ -1050,6 +1060,9 @@ router.put('/kra/create', function (req, res) {
                     });
                 });
             }
+            else {
+                res.end();
+            }
         })
         .catch(err => {
             res.statusCode = 401;
@@ -1094,6 +1107,74 @@ router.post('/kra/sendMail', function (req, res) {
 
     res.end();
 });
+
+router.put('/kra/copyKra', function (req, res) {
+    const _qtr = parseInt(req.body.qtr, 10);
+    const _empId = parseInt(req.body.empId, 10);
+    const _year = parseInt(req.body.year, 10);
+    const _projectId = parseInt(req.body.projectId, 10);
+    const _kraData = req.body.kra;
+    const _prevQtr = req.body.prevQtr;
+    const _prevYear = req.body.prevYear;
+
+    UserDTO.findOne({ empId: _empId })
+        .exec()
+        .then(user => {
+            if (user) {
+                let yearIndex = user.kraCollection.findIndex(x => x.year == _year);
+                let last = user.kraCollection[yearIndex].quarters[_qtr - 1].kra.length;
+                let count = 0;
+                if (last > 0)
+                    count = user.kraCollection[yearIndex].quarters[_qtr - 1].kra[last - 1].serial;
+                // Modify Kra
+                _kraData.serial = count + 1;
+
+                _kraData.description = _kraData.description + ' [from ' + _prevYear + ' Q' + _prevQtr + ']';
+                _kraData.carriedForward = false;
+                user.kraCollection[yearIndex].quarters[_qtr - 1].kra.push(_kraData);
+                user.save().then(result => {
+                    // send mail
+                    sendKraDetails(res, {
+                        name: user.firstName,
+                        email: user.emailId,
+                        quarter: _qtr,
+                        year: _year,
+                        kraSerial: count + 1,
+                        rating: _kraData.rating,
+                        comment: 'Kra from previous quarter has been carried forward',
+                        description: _kraData.description
+                    });
+
+                    res.statusCode = 200;
+                    res.statusMessage = 'Added new item';
+                    res.json({
+                        success: true,
+                        data: user.kraCollection[yearIndex].quarters[_qtr - 1].kra
+                    });
+                    return null;
+                }).catch(err => {
+                    res.json({
+                        success: false,
+                        message: 'copy failed',
+                        data: null
+                    });
+                    return null;
+                });
+            }
+            else {
+                res.end();
+            }
+        })
+        .catch(err => {
+            res.statusCode = 401;
+            res.statusMessage = err.message;
+            res.json({
+                success: false,
+                data: null
+            });
+        }
+        );
+})
 
 // ----------------------------------------------------------------------------
 // POSITIONS
@@ -1560,7 +1641,7 @@ router.get('admin/restore', function (req, res) {
 // ----------------------------------------------------------------------------
 
 router.post('/admin/test', function (req, res) {
-    
+
 });
 
 module.exports = router;
