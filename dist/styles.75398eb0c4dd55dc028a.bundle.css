@@ -2,7 +2,9 @@
 
 /* -------------------------------------------------------------------
     TABLE 
-----------------------------------------------------------------------*/.mat-header-row{height:60px;background:#323a45;color:#fff;border-radius:4px}.mat-header-cell{color:#fff;font-size:1em;font-weight:700}
+----------------------------------------------------------------------*/.mat-header-row{height:60px;background:#323a45;color:#fff;border-radius:4px}.mat-header-cell{color:#fff;font-size:1em;font-weight:700}.mat-row:hover{background-color:#e0e0e0
+    /* transition: all .3s ease-in-out; */
+    /* transform: scale(1.05); */}
 
 /* -------------------------------------------------------------------
  BUTTONS 

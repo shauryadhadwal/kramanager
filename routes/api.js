@@ -1108,37 +1108,40 @@ router.post('/kra/sendMail', function (req, res) {
     res.end();
 });
 
+// Copy KRA
 router.put('/kra/copyKra', function (req, res) {
     const _qtr = parseInt(req.body.qtr, 10);
-    const _empId = parseInt(req.body.empId, 10);
     const _year = parseInt(req.body.year, 10);
+    const _empId = parseInt(req.body.empId, 10);
     const _projectId = parseInt(req.body.projectId, 10);
     const _kraData = req.body.kra;
-    const _prevQtr = req.body.prevQtr;
-    const _prevYear = req.body.prevYear;
+
+    const qtrToCopyTo = (_qtr + 1) % 4;
+    const yearToCopyTo = _qtr + 1 > 4 ? _year + 1 : _year;
 
     UserDTO.findOne({ empId: _empId })
         .exec()
         .then(user => {
             if (user) {
-                let yearIndex = user.kraCollection.findIndex(x => x.year == _year);
-                let last = user.kraCollection[yearIndex].quarters[_qtr - 1].kra.length;
+                let yearIndex = user.kraCollection.findIndex(x => x.year == yearToCopyTo);
+                const KraByYearQuarter = user.kraCollection[yearIndex].quarters[qtrToCopyTo - 1];
+                let last = KraByYearQuarter.kra.length;
                 let count = 0;
                 if (last > 0)
-                    count = user.kraCollection[yearIndex].quarters[_qtr - 1].kra[last - 1].serial;
+                    count = KraByYearQuarter.kra[last - 1].serial;
+
                 // Modify Kra
                 _kraData.serial = count + 1;
-
-                _kraData.description = _kraData.description + ' [from ' + _prevYear + ' Q' + _prevQtr + ']';
+                _kraData.description = _kraData.description + ' [from ' + _year + ' Q' + _qtr + ']';
                 _kraData.carriedForward = false;
-                user.kraCollection[yearIndex].quarters[_qtr - 1].kra.push(_kraData);
+                KraByYearQuarter.kra.push(_kraData);
                 user.save().then(result => {
                     // send mail
                     sendKraDetails(res, {
                         name: user.firstName,
                         email: user.emailId,
-                        quarter: _qtr,
-                        year: _year,
+                        quarter: qtrToCopyTo,
+                        year: yearToCopyTo,
                         kraSerial: count + 1,
                         rating: _kraData.rating,
                         comment: 'Kra from previous quarter has been carried forward',
@@ -1149,7 +1152,7 @@ router.put('/kra/copyKra', function (req, res) {
                     res.statusMessage = 'Added new item';
                     res.json({
                         success: true,
-                        data: user.kraCollection[yearIndex].quarters[_qtr - 1].kra
+                        data: KraByYearQuarter.kra
                     });
                     return null;
                 }).catch(err => {
