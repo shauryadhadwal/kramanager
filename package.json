@@ -25,7 +25,7 @@
     "mongoose": "^4.13.7",
     "morgan": "~1.9.0",
     "nodemailer": "^4.4.2",
-    "pug": "^2.0.1",
+    "pug": "^3.0.1",
     "randomatic": "^3.0.0",
     "serve-favicon": "~2.4.5"
   }
