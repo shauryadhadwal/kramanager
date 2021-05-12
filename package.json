@@ -24,7 +24,7 @@
     "moment": "^2.20.1",
     "mongoose": "^4.13.7",
     "morgan": "~1.9.0",
-    "nodemailer": "^4.4.2",
+    "nodemailer": "^6.4.16",
     "pug": "^2.0.1",
     "randomatic": "^3.0.0",
     "serve-favicon": "~2.4.5"
